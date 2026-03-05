@@ -370,9 +370,24 @@ ${userIdeas ? `STRATEGIST'S ADDITIONAL IDEAS & OBSERVATIONS:\n${userIdeas}` : ""
             ) : (
               <div style={s.outputContent}>
                 <OutputRenderer content={output} />
-                <button onClick={() => { navigator.clipboard.writeText(output); }} style={s.copyBtn}>
-                  Copy Output
-                </button>
+                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+                  <button onClick={() => { navigator.clipboard.writeText(output); }} style={s.copyBtn}>
+                    Copy Text
+                  </button>
+                  <button onClick={() => {
+                    const date = new Date().toISOString().split("T")[0];
+                    const label = mode === "diagnose" ? "Diagnosis" : "Creative-Batch";
+                    const filename = `${brandName}-${label}-${date}.txt`;
+                    const header = `THE CREATIVE ROOM\n${brandName} — ${label}\nGenerated: ${date}\nby Wasan Al · @foreveronajourney\n${"─".repeat(60)}\n\n`;
+                    const blob = new Blob([header + output], { type: "text/plain" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = filename; a.click();
+                    URL.revokeObjectURL(url);
+                  }} style={{ ...s.copyBtn, borderColor: "#7c6aff44", color: "#7c6aff" }}>
+                    Download .txt
+                  </button>
+                </div>
               </div>
             )}
           </div>
