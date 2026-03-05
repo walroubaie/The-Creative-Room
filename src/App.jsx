@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as mammoth from "mammoth";
 
 // ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
 const BRANDS_KEY = "cr_brands_v1";
@@ -158,7 +159,19 @@ function Setup({ onBack, onCreate }) {
 
   const handleFile = async (e) => {
     const file = e.target.files[0]; if (!file) return;
-    const text = await file.text(); setDoc(text);
+    let text = "";
+    if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        text = result.value;
+      } catch {
+        text = await file.text();
+      }
+    } else {
+      text = await file.text();
+    }
+    setDoc(text);
     if (!name) {
       const first = text.split("\n").find(l=>l.trim())?.replace(/[#*_]/g,"").trim()||"";
       setName(first.split("—")[0].split("|")[0].trim().slice(0,40) || file.name.replace(/\.[^.]+$/,""));
