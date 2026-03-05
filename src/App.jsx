@@ -237,7 +237,7 @@ ${activePersona ? `- Persona This Ad Was Built For: ${activePersona}` : ""}
 ${activeAngle ? `- Angle Tested: ${activeAngle}` : ""}`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -266,7 +266,7 @@ ${activeAngle ? `FOCUS ANGLE: ${activeAngle}` : "Generate diverse angles across 
 ${userIdeas ? `STRATEGIST'S ADDITIONAL IDEAS & OBSERVATIONS:\n${userIdeas}` : ""}`;
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
+      const res = await fetch("/api/claude", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -395,14 +395,14 @@ ${userIdeas ? `STRATEGIST'S ADDITIONAL IDEAS & OBSERVATIONS:\n${userIdeas}` : ""
       </div>
 
       <style>{`
-        @keyframes dotPulse { 0%,100%{opacity:.2;transform:scale(.7)} 50%{opacity:1;transform:scale(1)} }
+        @keyframes dotPulse { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1)} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
         * { box-sizing:border-box; margin:0; padding:0; }
-        body { background:#07070f; }
-        ::-webkit-scrollbar { width:3px; }
-        ::-webkit-scrollbar-track { background:#07070f; }
-        ::-webkit-scrollbar-thumb { background:#1e1e2a; border-radius:2px; }
-        textarea::placeholder, input::placeholder { color:#252535; }
+        body { background:#F7F3EE; }
+        ::-webkit-scrollbar { width:4px; }
+        ::-webkit-scrollbar-track { background:#F7F3EE; }
+        ::-webkit-scrollbar-thumb { background:#d8cfc4; border-radius:2px; }
+        textarea::placeholder, input::placeholder { color:#bbb; }
         input:focus, textarea:focus, select:focus { outline:none; }
       `}</style>
     </div>
@@ -434,16 +434,16 @@ function OutputRenderer({ content }) {
 // ─── LANDING ──────────────────────────────────────────────────────────────────
 function Landing({ onEnter }) {
   return (
-    <div style={{ minHeight: "100vh", background: "#07070f", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Palatino Linotype', serif" }}>
+    <div style={{ minHeight: "100vh", background: "#F7F3EE", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Palatino Linotype', serif" }}>
       <div style={{ maxWidth: 580, width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: 10, letterSpacing: 8, color: "#7c6aff", fontFamily: "monospace", textTransform: "uppercase", marginBottom: 48 }}>
+        <div style={{ fontSize: 10, letterSpacing: 8, color: "#5a4aaa", fontFamily: "monospace", textTransform: "uppercase", marginBottom: 48 }}>
           Meta Ads Intelligence System
         </div>
         <div style={{ width: 64, height: 64, background: "linear-gradient(135deg,#7c6aff,#4a3aaa)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontFamily: "monospace", fontWeight: "bold", margin: "0 auto 32px", boxShadow: "0 8px 40px rgba(124,106,255,.3)" }}>CR</div>
-        <h1 style={{ fontSize: 54, color: "#f0eeff", fontWeight: "normal", lineHeight: 1.1, marginBottom: 20 }}>
+        <h1 style={{ fontSize: 54, color: "#1C1C1E", fontWeight: "normal", lineHeight: 1.1, marginBottom: 20 }}>
           The Creative<br />Room
         </h1>
-        <p style={{ color: "#444", fontSize: 16, lineHeight: 1.9, marginBottom: 52, maxWidth: 420, margin: "0 auto 52px" }}>
+        <p style={{ color: "#666", fontSize: 16, lineHeight: 1.9, marginBottom: 52, maxWidth: 420, margin: "0 auto 52px" }}>
           Upload your brand strategy. Diagnose your Meta ads data. Generate your next creative batch. Built on every framework that moves the needle.
         </p>
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 52, maxWidth: 400, margin: "0 auto 52px" }}>
@@ -453,9 +453,9 @@ function Landing({ onEnter }) {
             ["👤", "Persona-driven — every concept tied to a real human"],
             ["🔁", "Living system — grows with every brand you run"],
           ].map(([icon, text], i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", padding: "10px 16px", background: "#0d0d18", borderRadius: 10, border: "1px solid #141428" }}>
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", padding: "10px 16px", background: "#fff", borderRadius: 10, border: "1px solid #e8e0d4" }}>
               <span style={{ fontSize: 16 }}>{icon}</span>
-              <span style={{ color: "#3a3a5a", fontSize: 13 }}>{text}</span>
+              <span style={{ color: "#555", fontSize: 13 }}>{text}</span>
             </div>
           ))}
         </div>
@@ -473,36 +473,36 @@ function Landing({ onEnter }) {
 function Upload({ fileRef, uploadStatus, brandName, brandData, onUpload, onManual, onContinue }) {
   const [manualText, setManualText] = useState("");
   return (
-    <div style={{ minHeight: "100vh", background: "#07070f", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Palatino Linotype', serif" }}>
+    <div style={{ minHeight: "100vh", background: "#F7F3EE", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Palatino Linotype', serif" }}>
       <div style={{ maxWidth: 600, width: "100%" }}>
-        <div style={{ fontSize: 10, letterSpacing: 6, color: "#7c6aff", fontFamily: "monospace", marginBottom: 32 }}>STEP 1 — LOAD BRAND STRATEGY</div>
-        <h2 style={{ fontSize: 38, color: "#f0eeff", fontWeight: "normal", marginBottom: 12 }}>Which brand are we working on?</h2>
-        <p style={{ color: "#444", fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
+        <div style={{ fontSize: 10, letterSpacing: 6, color: "#5a4aaa", fontFamily: "monospace", marginBottom: 32 }}>STEP 1 — LOAD BRAND STRATEGY</div>
+        <h2 style={{ fontSize: 38, color: "#1C1C1E", fontWeight: "normal", marginBottom: 12 }}>Which brand are we working on?</h2>
+        <p style={{ color: "#666", fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
           Upload the strategy document from your Creative Strategy Session app. The Creative Room will use everything inside it.
         </p>
 
         <div
           onClick={() => fileRef.current?.click()}
-          style={{ border: "2px dashed #1e1e30", borderRadius: 14, padding: "40px 32px", textAlign: "center", cursor: "pointer", marginBottom: 20, transition: "all .2s", background: uploadStatus === "done" ? "#0a0a18" : "transparent" }}
+          style={{ border: "2px dashed #d8cfc4", borderRadius: 14, padding: "40px 32px", textAlign: "center", cursor: "pointer", marginBottom: 20, transition: "all .2s", background: uploadStatus === "done" ? "#0a0a18" : "transparent" }}
           onMouseEnter={e => e.currentTarget.style.borderColor = "#7c6aff"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = uploadStatus === "done" ? "#7c6aff33" : "#1e1e30"}
+          onMouseLeave={e => e.currentTarget.style.borderColor = uploadStatus === "done" ? "#7c6aff33" : "#d8cfc4"}
         >
           <input ref={fileRef} type="file" accept=".txt,.md,.doc,.docx" onChange={onUpload} style={{ display: "none" }} />
           {uploadStatus === "idle" && <>
             <div style={{ fontSize: 32, marginBottom: 12 }}>📄</div>
-            <div style={{ color: "#555", fontSize: 14 }}>Click to upload your strategy document</div>
-            <div style={{ color: "#2a2a3a", fontSize: 11, fontFamily: "monospace", marginTop: 8 }}>.txt · .md · .doc · .docx</div>
+            <div style={{ color: "#888", fontSize: 14 }}>Click to upload your strategy document</div>
+            <div style={{ color: "#bbb", fontSize: 11, fontFamily: "monospace", marginTop: 8 }}>.txt · .md · .doc · .docx</div>
           </>}
           {uploadStatus === "reading" && <div style={{ color: "#7c6aff", fontSize: 14, fontFamily: "monospace" }}>Reading strategy document...</div>}
           {uploadStatus === "done" && <>
             <div style={{ color: "#4a8a4a", fontSize: 11, fontFamily: "monospace", letterSpacing: 2, marginBottom: 8 }}>● LOADED</div>
             <div style={{ color: "#c8c0ff", fontSize: 16 }}>{brandName}</div>
-            <div style={{ color: "#333", fontSize: 11, marginTop: 6 }}>{brandData.length.toLocaleString()} characters read</div>
+            <div style={{ color: "#888", fontSize: 11, marginTop: 6 }}>{brandData.length.toLocaleString()} characters read</div>
           </>}
           {uploadStatus === "error" && <div style={{ color: "#c06060", fontSize: 14 }}>Couldn't read that file. Try pasting below.</div>}
         </div>
 
-        <div style={{ color: "#252535", fontSize: 11, fontFamily: "monospace", marginBottom: 10, letterSpacing: 1 }}>OR PASTE STRATEGY NOTES MANUALLY</div>
+        <div style={{ color: "#aaa", fontSize: 11, fontFamily: "monospace", marginBottom: 10, letterSpacing: 1 }}>OR PASTE STRATEGY NOTES MANUALLY</div>
         <textarea
           value={manualText}
           onChange={e => setManualText(e.target.value)}
@@ -510,10 +510,10 @@ function Upload({ fileRef, uploadStatus, brandName, brandData, onUpload, onManua
           rows={5}
           style={{ width: "100%", background: "#0d0d18", border: "1px solid #1a1a28", borderRadius: 12, padding: "14px 18px", color: "#888", fontSize: 13, fontFamily: "monospace", resize: "vertical", lineHeight: 1.6 }}
           onFocus={e => e.target.style.borderColor = "#7c6aff"}
-          onBlur={e => e.target.style.borderColor = "#1a1a28"}
+          onBlur={e => e.target.style.borderColor = "#e0d8cc"}
         />
         {manualText.trim() && (
-          <button onClick={() => onManual(manualText)} style={{ marginTop: 10, background: "#1a1a28", border: "1px solid #7c6aff44", borderRadius: 10, padding: "10px 20px", color: "#7c6aff", fontSize: 13, fontFamily: "monospace", cursor: "pointer" }}>
+          <button onClick={() => onManual(manualText)} style={{ marginTop: 10, background: "#fff", border: "1px solid #7c6aff44", borderRadius: 10, padding: "10px 20px", color: "#7c6aff", fontSize: 13, fontFamily: "monospace", cursor: "pointer" }}>
             Use This Text →
           </button>
         )}
@@ -534,9 +534,9 @@ function Upload({ fileRef, uploadStatus, brandName, brandData, onUpload, onManua
 function ModeSelect({ onSelect, brandName }) {
   return (
     <div style={{ maxWidth: 700, margin: "60px auto", padding: "0 24px", fontFamily: "'Palatino Linotype', serif", animation: "fadeUp .4s ease" }}>
-      <div style={{ fontSize: 11, letterSpacing: 4, color: "#7c6aff", fontFamily: "monospace", marginBottom: 16 }}>WELCOME BACK</div>
-      <h2 style={{ fontSize: 36, color: "#f0eeff", fontWeight: "normal", marginBottom: 8 }}>{brandName}</h2>
-      <p style={{ color: "#444", fontSize: 15, marginBottom: 48 }}>What are we doing today?</p>
+      <div style={{ fontSize: 11, letterSpacing: 4, color: "#5a4aaa", fontFamily: "monospace", marginBottom: 16 }}>WELCOME BACK</div>
+      <h2 style={{ fontSize: 36, color: "#1C1C1E", fontWeight: "normal", marginBottom: 8 }}>{brandName}</h2>
+      <p style={{ color: "#666", fontSize: 15, marginBottom: 48 }}>What are we doing today?</p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <ModeCard
           icon="📊"
@@ -561,10 +561,10 @@ function ModeCard({ icon, title, desc, accent, onClick }) {
   const [hover, setHover] = useState(false);
   return (
     <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? "#0f0f1e" : "#0a0a16", border: `1px solid ${hover ? accent + "44" : "#141428"}`, borderRadius: 16, padding: "28px 24px", cursor: "pointer", transition: "all .2s" }}>
+      style={{ background: hover ? "#f0ebe0" : "#fff", border: `1px solid ${hover ? accent + "88" : "#e8e0d4"}`, borderRadius: 16, padding: "28px 24px", cursor: "pointer", transition: "all .2s" }}>
       <div style={{ fontSize: 28, marginBottom: 14 }}>{icon}</div>
       <div style={{ color: accent, fontSize: 13, fontFamily: "monospace", letterSpacing: 1, marginBottom: 8 }}>{title.toUpperCase()}</div>
-      <div style={{ color: "#555", fontSize: 13, lineHeight: 1.7 }}>{desc}</div>
+      <div style={{ color: "#666", fontSize: 13, lineHeight: 1.7 }}>{desc}</div>
     </div>
   );
 }
@@ -653,11 +653,11 @@ function DiagnosePanel({ metrics, setMetrics, activePersona, setActivePersona, a
           rows={3}
           style={s.textarea}
           onFocus={e => e.target.style.borderColor = "#d4a853"}
-          onBlur={e => e.target.style.borderColor = "#1a1a28"}
+          onBlur={e => e.target.style.borderColor = "#e0d8cc"}
         />
       </div>
 
-      <button onClick={onRun} disabled={loading} style={{ ...s.runBtn, background: loading ? "#1a1a28" : "linear-gradient(135deg,#d4a853,#8b5e3c)" }}>
+      <button onClick={onRun} disabled={loading} style={{ ...s.runBtn, background: loading ? "#e0d8cc" : "linear-gradient(135deg,#d4a853,#8b5e3c)" }}>
         {loading ? "Diagnosing..." : "Run Diagnosis →"}
       </button>
     </div>
@@ -724,11 +724,11 @@ function CreatePanel({ activePersona, setActivePersona, activeAngle, setActiveAn
           rows={6}
           style={s.textarea}
           onFocus={e => e.target.style.borderColor = "#7c6aff"}
-          onBlur={e => e.target.style.borderColor = "#1a1a28"}
+          onBlur={e => e.target.style.borderColor = "#e0d8cc"}
         />
       </div>
 
-      <button onClick={onRun} disabled={loading} style={{ ...s.runBtn, background: loading ? "#1a1a28" : "linear-gradient(135deg,#7c6aff,#4a3aaa)" }}>
+      <button onClick={onRun} disabled={loading} style={{ ...s.runBtn, background: loading ? "#e0d8cc" : "linear-gradient(135deg,#7c6aff,#4a3aaa)" }}>
         {loading ? "Building creative batch..." : "Generate Creative Batch →"}
       </button>
     </div>
@@ -746,12 +746,12 @@ function Pill({ label, active, onClick, accent }) {
   return (
     <button onClick={onClick} style={{
       background: active ? accent + "18" : "transparent",
-      border: `1px solid ${active ? accent : "#1e1e30"}`,
-      borderRadius: 20, padding: "5px 14px", color: active ? accent : "#333",
+      border: `1px solid ${active ? accent : "#d8cfc4"}`,
+      borderRadius: 20, padding: "5px 14px", color: active ? accent : "#888",
       fontSize: 11, fontFamily: "monospace", cursor: "pointer", transition: "all .2s", whiteSpace: "nowrap"
     }}
       onMouseEnter={e => { if (!active) e.currentTarget.style.borderColor = accent + "55"; }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = "#1e1e30"; }}>
+      onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = "#d8cfc4"; }}>
       {label}
     </button>
   );
@@ -760,65 +760,65 @@ function Pill({ label, active, onClick, accent }) {
 function MetricInput({ label, value, onChange, placeholder, hint }) {
   return (
     <div>
-      <div style={{ color: "#333", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, marginBottom: 6 }}>{label}</div>
+      <div style={{ color: "#6b5c45", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, marginBottom: 6 }}>{label}</div>
       <input
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{ width: "100%", background: "#0d0d18", border: "1px solid #1a1a28", borderRadius: 8, padding: "10px 14px", color: "#c8c0d8", fontSize: 13, fontFamily: "monospace" }}
-        onFocus={e => e.target.style.borderColor = "#7c6aff44"}
-        onBlur={e => e.target.style.borderColor = "#1a1a28"}
+        style={{ width: "100%", background: "#F7F3EE", border: "1px solid #e0d8cc", borderRadius: 8, padding: "10px 14px", color: "#1C1C1E", fontSize: 13, fontFamily: "monospace" }}
+        onFocus={e => e.target.style.borderColor = "#7c6aff"}
+        onBlur={e => e.target.style.borderColor = "#e0d8cc"}
       />
-      {hint && <div style={{ color: "#252535", fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>{hint}</div>}
+      {hint && <div style={{ color: "#aaa", fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>{hint}</div>}
     </div>
   );
 }
 
 // ─── STYLES ───────────────────────────────────────────────────────────────────
 const s = {
-  app: { minHeight: "100vh", background: "#07070f", display: "flex", flexDirection: "column", fontFamily: "'Palatino Linotype', serif" },
-  topbar: { background: "#0a0a14", borderBottom: "1px solid #111120", padding: "12px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 10 },
+  app: { minHeight: "100vh", background: "#F7F3EE", display: "flex", flexDirection: "column", fontFamily: "'Palatino Linotype', serif" },
+  topbar: { background: "#1C1C1E", borderBottom: "1px solid #2a2a2a", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 10 },
   topbarLeft: { display: "flex", alignItems: "center", gap: 12 },
   logo: { width: 36, height: 36, background: "linear-gradient(135deg,#7c6aff,#4a3aaa)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff", fontFamily: "monospace", fontWeight: "bold", flexShrink: 0 },
-  topbarTitle: { color: "#c8c0e8", fontSize: 14 },
-  topbarSub: { color: "#2a2a3a", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, marginTop: 2 },
+  topbarTitle: { color: "#f0ebe0", fontSize: 14 },
+  topbarSub: { color: "#555", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, marginTop: 2 },
   topbarRight: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  modeBtn: { background: "transparent", border: "1px solid #1e1e30", borderRadius: 8, padding: "6px 14px", color: "#333", fontSize: 11, fontFamily: "monospace", letterSpacing: 1, cursor: "pointer", transition: "all .2s" },
-  modeBtnActive: { borderColor: "#d4a85355", color: "#d4a853", background: "rgba(212,168,83,.08)" },
-  modeBtnActiveGreen: { borderColor: "#7c6aff55", color: "#7c6aff", background: "rgba(124,106,255,.08)" },
-  switchBtn: { background: "transparent", border: "1px solid #1a1a28", borderRadius: 8, padding: "6px 12px", color: "#2a2a3a", fontSize: 10, fontFamily: "monospace", cursor: "pointer" },
+  modeBtn: { background: "transparent", border: "1px solid #3a3a3a", borderRadius: 8, padding: "6px 14px", color: "#888", fontSize: 11, fontFamily: "monospace", letterSpacing: 1, cursor: "pointer", transition: "all .2s" },
+  modeBtnActive: { borderColor: "#d4a853", color: "#d4a853", background: "rgba(212,168,83,.12)" },
+  modeBtnActiveGreen: { borderColor: "#7c6aff", color: "#c8c0ff", background: "rgba(124,106,255,.12)" },
+  switchBtn: { background: "transparent", border: "1px solid #3a3a3a", borderRadius: 8, padding: "6px 12px", color: "#666", fontSize: 10, fontFamily: "monospace", cursor: "pointer" },
   main: { flex: 1, overflowY: "auto" },
   panelHeader: { display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 32 },
   panelIcon: { width: 44, height: 44, background: "linear-gradient(135deg,#d4a853,#8b5e3c)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 },
-  panelTitle: { color: "#f0eeff", fontSize: 22, marginBottom: 4 },
-  panelSub: { color: "#444", fontSize: 13, lineHeight: 1.6 },
+  panelTitle: { color: "#1C1C1E", fontSize: 22, marginBottom: 4 },
+  panelSub: { color: "#666", fontSize: 13, lineHeight: 1.6 },
   selectorRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 },
-  selectorGroup: { background: "#0a0a16", border: "1px solid #111128", borderRadius: 12, padding: "16px 18px" },
-  selectorLabel: { color: "#2a2a4a", fontSize: 9, fontFamily: "monospace", letterSpacing: 2, marginBottom: 12 },
+  selectorGroup: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 12, padding: "16px 18px" },
+  selectorLabel: { color: "#8b7355", fontSize: 9, fontFamily: "monospace", letterSpacing: 2, marginBottom: 12 },
   pills: { display: "flex", flexWrap: "wrap", gap: 6 },
-  section: { background: "#0a0a16", border: "1px solid #111128", borderRadius: 12, padding: "18px 20px", marginBottom: 16 },
-  sectionTitle: { color: "#3a3a5a", fontSize: 10, fontFamily: "monospace", letterSpacing: 2, marginBottom: 14 },
-  sectionNote: { color: "#252535", fontFamily: "monospace" },
-  sectionNote2: { color: "#252535", fontSize: 11, fontFamily: "monospace", marginBottom: 12, marginTop: -8 },
+  section: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 12, padding: "18px 20px", marginBottom: 16 },
+  sectionTitle: { color: "#8b7355", fontSize: 10, fontFamily: "monospace", letterSpacing: 2, marginBottom: 14 },
+  sectionNote: { color: "#aaa", fontFamily: "monospace" },
+  sectionNote2: { color: "#aaa", fontSize: 11, fontFamily: "monospace", marginBottom: 12, marginTop: -8 },
   metricsGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 },
-  textarea: { width: "100%", background: "#0d0d18", border: "1px solid #1a1a28", borderRadius: 10, padding: "12px 16px", color: "#888", fontSize: 13, fontFamily: "monospace", resize: "vertical", lineHeight: 1.7, marginTop: 4 },
+  textarea: { width: "100%", background: "#F7F3EE", border: "1px solid #e0d8cc", borderRadius: 10, padding: "12px 16px", color: "#333", fontSize: 13, fontFamily: "monospace", resize: "vertical", lineHeight: 1.7, marginTop: 4 },
   runBtn: { width: "100%", border: "none", borderRadius: 12, padding: "18px", color: "#fff", fontSize: 16, fontFamily: "'Palatino Linotype', serif", cursor: "pointer", letterSpacing: 1, marginTop: 8, marginBottom: 40, transition: "all .2s" },
   outputSection: { maxWidth: 820, margin: "0 auto 60px", padding: "0 24px", animation: "fadeUp .4s ease" },
-  outputHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingTop: 8, borderTop: "1px solid #111128" },
+  outputHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingTop: 8, borderTop: "1px solid #e8e0d4" },
   outputDot: { width: 8, height: 8, borderRadius: "50%", background: "#7c6aff", animation: "dotPulse 2s ease-in-out infinite" },
-  outputLabel: { color: "#2a2a4a", fontSize: 10, fontFamily: "monospace", letterSpacing: 3 },
-  loadingBox: { background: "#0a0a16", border: "1px solid #111128", borderRadius: 14, padding: "40px", textAlign: "center" },
+  outputLabel: { color: "#8b7355", fontSize: 10, fontFamily: "monospace", letterSpacing: 3 },
+  loadingBox: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 14, padding: "40px", textAlign: "center" },
   loadingDots: { display: "flex", gap: 6, justifyContent: "center", marginBottom: 16 },
   dot: { width: 8, height: 8, borderRadius: "50%", background: "#7c6aff", animation: "dotPulse 1.2s ease-in-out infinite", display: "inline-block" },
-  loadingText: { color: "#333", fontSize: 13, fontFamily: "monospace" },
-  outputContent: { background: "#0a0a16", border: "1px solid #111128", borderRadius: 14, padding: "28px 30px" },
-  copyBtn: { marginTop: 20, background: "transparent", border: "1px solid #1e1e30", borderRadius: 8, padding: "8px 18px", color: "#333", fontSize: 11, fontFamily: "monospace", cursor: "pointer" },
-  outH2: { color: "#7c6aff", fontSize: 16, fontFamily: "monospace", letterSpacing: 1, marginTop: 20, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #111128" },
-  outH3: { color: "#d4a853", fontSize: 14, marginTop: 18, marginBottom: 6 },
-  outBold: { color: "#c8c0e8", fontSize: 14, fontWeight: "bold", marginTop: 6 },
-  outBullet: { color: "#555", fontSize: 13, lineHeight: 1.7, paddingLeft: 16 },
+  loadingText: { color: "#888", fontSize: 13, fontFamily: "monospace" },
+  outputContent: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 14, padding: "28px 30px" },
+  copyBtn: { background: "transparent", border: "1px solid #e0d8cc", borderRadius: 8, padding: "8px 18px", color: "#888", fontSize: 11, fontFamily: "monospace", cursor: "pointer" },
+  outH2: { color: "#5a4aaa", fontSize: 16, fontFamily: "monospace", letterSpacing: 1, marginTop: 20, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #e8e0d4" },
+  outH3: { color: "#8b5e3c", fontSize: 15, fontWeight: "bold", marginTop: 18, marginBottom: 6 },
+  outBold: { color: "#1C1C1E", fontSize: 14, fontWeight: "bold", marginTop: 6 },
+  outBullet: { color: "#444", fontSize: 13, lineHeight: 1.7, paddingLeft: 16 },
   outField: { fontSize: 13, lineHeight: 1.8, display: "flex", gap: 8, flexWrap: "wrap" },
-  outFieldLabel: { color: "#7c6aff", fontFamily: "monospace", fontSize: 11, flexShrink: 0 },
-  outBody: { color: "#555", fontSize: 13, lineHeight: 1.8 },
-  outDivider: { height: 1, background: "#111128", margin: "12px 0" },
+  outFieldLabel: { color: "#5a4aaa", fontFamily: "monospace", fontSize: 11, flexShrink: 0 },
+  outBody: { color: "#444", fontSize: 13, lineHeight: 1.8 },
+  outDivider: { height: 1, background: "#e8e0d4", margin: "12px 0" },
 };
