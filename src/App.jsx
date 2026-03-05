@@ -92,6 +92,11 @@ export default function App() {
 // ─── HOME ─────────────────────────────────────────────────────────────────────
 function Home({ brands, onOpen, onNew, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const handleDelete = (e, id) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setConfirmDelete(id);
+  };
   return (
     <div style={p.page}>
       <div style={p.homeWrap}>
@@ -123,7 +128,7 @@ function Home({ brands, onOpen, onNew, onDelete }) {
                 onMouseLeave={e=>e.currentTarget.style.borderColor="#e8e0d4"}>
                 <div style={p.brandCardTop}>
                   <div style={p.brandInitial}>{b.name[0]?.toUpperCase()}</div>
-                  <button onClick={e=>{e.stopPropagation();setConfirmDelete(b.id);}} style={p.deleteBtn}>✕</button>
+                  <button onClick={(e)=>handleDelete(e, b.id)} style={p.deleteBtn}>✕</button>
                 </div>
                 <div style={p.brandCardName}>{b.name}</div>
                 <div style={p.brandCardMeta}>{loadRoom(b.id).length} messages · {new Date(b.created).toLocaleDateString()}</div>
