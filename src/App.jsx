@@ -1,824 +1,489 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
-// ─── SYSTEM PROMPTS ────────────────────────────────────────────────────────────
+// ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
+const BRANDS_KEY = "cr_brands_v1";
+function loadBrands() { try { return JSON.parse(localStorage.getItem(BRANDS_KEY) || "[]"); } catch { return []; } }
+function saveBrands(b) { try { localStorage.setItem(BRANDS_KEY, JSON.stringify(b)); } catch {} }
+function loadRoom(id) { try { return JSON.parse(localStorage.getItem(`cr_room_${id}`) || "[]"); } catch { return []; } }
+function saveRoom(id, msgs) { try { localStorage.setItem(`cr_room_${id}`, JSON.stringify(msgs)); } catch {} }
 
-const DIAGNOSIS_SYSTEM = (brandData) => `You are a senior Meta ads creative strategist with deep expertise in diagnosing ad performance and making data-driven creative decisions. You use the frameworks of Dara Denney, Chase Chapel, Alysha (alyshafrommotion), and the GBP method.
-
-You have been given the following brand strategy document:
-
-═══════════════════════════════
-BRAND STRATEGY
-═══════════════════════════════
-${brandData}
-═══════════════════════════════
-
-YOUR DIAGNOSIS FRAMEWORK:
-Read metrics in this exact order — sequence matters:
-
-1. HOOK RATE (3-sec views ÷ impressions)
-   - Below 20%: Critical — first 3 seconds not stopping scroll. Problem is the hook itself (text, visual, or pattern interrupt)
-   - 20–30%: Average — room to improve
-   - Above 30%: Strong — creative is stopping scroll
-   - Above 40%: Exceptional
-
-2. HOLD RATE (15-sec views ÷ impressions OR % who watched full video if under 15s)
-   - Below 10%: Critical — losing people after the hook. Body isn't delivering on the promise
-   - 10–20%: Average
-   - Above 20%: Strong retention
-
-3. UNIQUE OUTBOUND CTR
-   - Below 0.5%: Low — message resonates but not driving action, or wrong audience
-   - 0.5–1.5%: Average
-   - Above 1.5%: Strong
-
-4. CPA (Cost Per Acquisition/Purchase)
-   - Always compare to brand's target CPA
-   - This is the final verdict — everything above explains why
-
-5. ROAS
-   - Below 1.5: Losing money
-   - 1.5–2.5: Breaking even / marginal
-   - Above 2.5: Profitable
-   - Above 4: Scale aggressively
-
-6. CPM — high CPM means expensive delivery, often signals wrong audience signal or low relevance score
-7. FREQUENCY — above 3–4 in 7 days = audience fatigue, creative needs refreshing
-
-THE 5-LINK CHAIN:
-Hook Rate → Hold Rate → CTR → Conversion Rate → CPA
-If any link breaks, diagnose THAT link before moving further down.
-
-QUALITATIVE ANALYSIS (always include):
-- Format type (UGC, static, founder, testimonial)
-- Messaging angle used (which awareness level was it targeting)
-- Creator/talent notes
-- Production quality signals
-- What the winning ads have in common vs losing ads
-
-THREE SCENARIOS:
-A) No winners at all → wrong message, wrong format, or wrong audience. Diagnose which.
-B) One/two winners, some losers → protect the winner, iterate on ONE variable at a time, develop next concept simultaneously
-C) Strong winner with good CPA → add one layer of complexity at a time, never two simultaneously
-
-YOUR OUTPUT FORMAT:
-Always structure your diagnosis as:
-1. THE VERDICT (2-3 sentences — what is actually happening)
-2. THE CHAIN DIAGNOSIS (go through each metric in order, explain what it means)
-3. WHAT BROKE (the specific link in the chain that failed first)
-4. THE DECISION (exactly what to do next — specific and actionable)
-5. NEXT BATCH DIRECTION (what this data tells you about what to test next, connected to the brand strategy)
-
-Use the brand's actual customer language and personas from the strategy doc when making recommendations. Be direct. Be specific. Never vague.`;
-
-const CREATIVE_SYSTEM = (brandData, userInput) => `You are a senior Meta ads creative strategist. You are building a complete creative batch for a brand using every framework available to you.
+// ─── SYSTEM PROMPT ────────────────────────────────────────────────────────────
+const SYSTEM = (doc) => `You are The Creative Room — a senior Meta ads creative strategist and thinking partner. You are conversational, direct, and specific. Everything you say is rooted in the brand strategy document below.
 
 BRAND STRATEGY DOCUMENT:
-═══════════════════════════════
-${brandData}
-═══════════════════════════════
+═══════════════════════════════════════
+${doc}
+═══════════════════════════════════════
 
-${userInput ? `ADDITIONAL CONTEXT FROM STRATEGIST:\n${userInput}\n═══════════════════════════════` : ''}
+YOUR TWO MODES:
 
-YOUR FRAMEWORKS TO APPLY:
+━━━ DIAGNOSE MODE ━━━
+When diagnosing Meta ads performance:
+- Guide conversationally — ask for metrics one at a time, in the right order
+- Sequence: Hook Rate → Hold Rate → CTR → CPA → ROAS → CPM → Frequency
+- If metric missing: tell them what it is, why you need it, where to find it in Meta Ads Manager
+- Diagnose using the 5-link chain: Hook → Hold → Click → Land → Convert
+- Hook Rate benchmarks: below 20% critical, 20-30% average, above 30% strong, above 40% exceptional
+- Hold Rate benchmarks: below 10% critical, 10-20% average, above 20% strong
+- CTR benchmarks: below 0.5% low, 0.5-1.5% average, above 1.5% strong
+- Three scenarios: A) No winners → wrong message/format/audience. B) Some winners → protect winner, iterate one variable. C) Strong winner → add one complexity layer at a time
+- Always connect diagnosis to brand strategy — which persona, which angle, what does this tell us
+- Absorb ANY extra context user gives — comments, observations, what they noticed
 
-ALYSHA'S CREATIVE STRATEGY ENGINE:
-- Primary Organising Principle: Pain-First (actively searching for solution) vs Desire-First (drawn to identity/aspiration)
-- Map pain/desire to specific personas from the strategy doc
-- Generate angles at every intersection: Desired Outcome, Objections, Features/Benefits, Use Case, Consequences, Misconceptions, Education, Acceptance, Failed Solutions, Identity
-- The Aha Moment: the single sentence where viewer shifts from "interesting" to "this is exactly what I needed"
+━━━ CREATE MODE ━━━
+When generating creative:
+- First ask: which persona? specific angle? any ideas or observations to factor in?
+- Use ALL frameworks:
+  * Alysha's pain/desire mapping — one primary organising principle per concept
+  * Cara Hoyt's 10 hook formulas filled with the brand's ACTUAL language bank
+  * Three hook types stacked: TEXT (opening line) + VISUAL (opening frame) + AUDIO (first words)
+  * GBP Method: GUT (0-3s) → BRAIN A (3-8s) → BRAIN B (8-15s, 3 objections) → POCKET (CTA)
+  * 5 Levels of Awareness: Unaware → Problem Aware → Solution Aware → Product Aware → Most Aware
+  * Funnel stages: TOF / MOF / BOF
+  * Angle dimensions: Desired Outcome, Objections, Features/Benefits, Use Case, Consequences, Misconceptions, Education, Acceptance, Failed Solutions, Identity
+  * Formats: UGC talking head, founder story, testimonial, before/after, static benefit callout, us vs them, social proof, demo, street interview, skit
+  * Competitor white space from the strategy doc
+- Use ACTUAL customer language from the language bank — never generic copy
+- Each concept labelled: persona, funnel stage, awareness level, angle, format, hook types, GBP structure, Aha Moment
+- Minimum 5 concepts per batch, varied across personas/stages/formats/angles
+- Factor in everything new the user tells you
 
-5 LEVELS OF AWARENESS (Eugene Schwartz):
-- Unaware: doesn't know they have the problem
-- Problem Aware: knows the problem, not the solution
-- Solution Aware: exploring different solutions
-- Product Aware: evaluating your product vs others
-- Most Aware: ready to buy, needs final push
+━━━ RULES ━━━
+- Thinking partner — help users make decisions, don't make them for them
+- Ask clarifying questions before generating
+- Short messages when asking. Detailed and structured when delivering output.
+- Always specific to THIS brand, THESE personas, THESE customers.`;
 
-CARA HOYT'S 10 HOOK FORMULAS:
-1. Tribal Identity — "If you [identity marker]..."
-2. Investment Hook — "I spent X on Y and here's what I learned"
-3. Why Did No One Tell Me — "Nobody talks about..."
-4. Problem-First — lead with the pain before the product
-5. POV Hook — "POV: You finally found..."
-6. Emotional Trigger — direct emotional activation
-7. Give Me Time — "In 30 seconds I'll show you..."
-8. Founder Intro — personal story, why this exists
-9. Creator Partnership — third party credibility
-10. Golden Nugget — lead with the most compelling fact/insight
-
-THREE HOOK TYPES (always layer all three):
-- TEXT HOOK: the opening line — use customer's ACTUAL language from the language bank
-- VISUAL HOOK: what appears in opening frame — pattern interrupt, recognition, curiosity
-- AUDIO/VERBAL HOOK: what they hear — tone, pacing, first words spoken
-
-STACKING RULE: Visual sets scene → Text names the specific thing → Audio confirms with personality. Never repeat the same information across layers.
-
-GBP METHOD:
-- GUT (0-3s): Hook + visual payoff — stop scroll with recognition or curiosity
-- BRAIN A (3-8s): Mechanism + proof — what it is and why it works
-- BRAIN B (8-15s): Handle 3 macro objections (Time frame, Personal features, Effort required, Sophistication, Geolocation, History/track record)
-- POCKET (final 3-7s): CTA — specific and direct
-
-META FUNNEL STRUCTURE:
-- TOP OF FUNNEL: Founder story, viral UGC, problem-solution, value education, facts/stats → Learn More / Shop Now CTAs
-- MIDDLE OF FUNNEL: Reviews, before/after, comparisons, demos, social proof → Shop Now CTAs (targeting video viewers, engagers, website visitors)
-- BOTTOM OF FUNNEL: Special offers, urgency, "still interested", direct asks → Get Offer / Shop Now CTAs (targeting add-to-cart, past purchasers)
-
-FORMAT TYPES:
-Videos: UGC talking head, founder story, testimonial, problem-solution, educational, before/after, demo, duet/stitch, street interview, ASMR, skit
-Statics: Benefit callout, us vs them, headline, testimonial quote, before/after, product shot, uglyad
-
-OUTPUT FORMAT — produce a complete structured creative batch:
-
-## BRAND CREATIVE SYSTEM
-[Quick summary of the primary organising principle and which persona we're building for]
-
-## CREATIVE BATCH — [BATCH NAME]
-
-For each concept, use this structure:
-### CONCEPT [N] — [NAME]
-**Persona:** [which persona from the strategy doc]
-**Funnel Stage:** [TOF/MOF/BOF]
-**Awareness Level:** [Unaware/Problem Aware/Solution Aware/Product Aware/Most Aware]
-**Angle:** [from Alysha's framework — which intersection]
-**Format:** [specific format type]
-**Primary Organising Principle:** [Pain-First or Desire-First]
-
-**TEXT HOOK:** [exact hook using customer language from language bank]
-**VISUAL HOOK:** [what opens in frame — specific, not vague]
-**AUDIO HOOK:** [first words spoken and tone]
-
-**AHA MOMENT:** [the single sentence that makes them say "this is exactly what I needed"]
-
-**GBP STRUCTURE:**
-- GUT (0-3s): [specific]
-- BRAIN A (3-8s): [specific]  
-- BRAIN B (8-15s): [which 3 objections and how addressed]
-- POCKET: [exact CTA]
-
-**WHY THIS WORKS:** [1-2 sentences connecting back to strategy and customer language]
-
----
-
-Always produce minimum 6 concepts per batch. Vary personas, funnel stages, awareness levels, formats and angles. Use the ACTUAL customer language from the language bank — not generic copy. Every concept must trace back to the strategy document.`;
-
-// ─── MAIN APP ──────────────────────────────────────────────────────────────────
-
-export default function CreativeRoom() {
-  const [screen, setScreen] = useState("landing");
-  const [brandData, setBrandData] = useState("");
-  const [brandName, setBrandName] = useState("");
-  const [mode, setMode] = useState(null); // "diagnose" | "create"
-  const [activePersona, setActivePersona] = useState(null);
-  const [activeAngle, setActiveAngle] = useState(null);
-  const [metrics, setMetrics] = useState({
-    spent: "", purchases: "", cpa: "", roas: "",
-    hookRate: "", holdRate: "", ctr: "", cpc: "",
-    cpm: "", frequency: "", reach: "", impressions: "",
-    format: "", angle: "", creator: "", production: "", notes: ""
+// ─── API CALL ─────────────────────────────────────────────────────────────────
+async function callClaude(messages, doc) {
+  const res = await fetch("/api/claude", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 3000,
+      system: SYSTEM(doc),
+      messages: messages.map(m => ({ role: m.role, content: m.content }))
+    })
   });
-  const [userIdeas, setUserIdeas] = useState("");
-  const [output, setOutput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [uploadStatus, setUploadStatus] = useState("idle");
-  const outputRef = useRef(null);
-  const fileRef = useRef(null);
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = await res.json();
+  return data.content?.find(b => b.type === "text")?.text || "";
+}
 
-  useEffect(() => {
-    if (output && outputRef.current) {
-      outputRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [output]);
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function App() {
+  const [screen, setScreen] = useState("home");
+  const [brands, setBrands] = useState(loadBrands);
+  const [activeBrand, setActiveBrand] = useState(null);
+  const [messages, setMessages] = useState([]);
 
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    setUploadStatus("reading");
-    try {
-      const text = await file.text();
-      setBrandData(text);
-      // Try to extract brand name from first line
-      const firstLine = text.split("\n").find(l => l.trim());
-      const name = firstLine?.replace(/[#*_]/g, "").trim().split("—")[0].split("|")[0].trim() || file.name.replace(/\.[^.]+$/, "");
-      setBrandName(name);
-      setUploadStatus("done");
-    } catch {
-      setUploadStatus("error");
-    }
-  };
+  const openBrand = (brand) => { setActiveBrand(brand); setMessages(loadRoom(brand.id)); setScreen("room"); };
+  const createBrand = (brand) => { const u = [brand, ...brands]; setBrands(u); saveBrands(u); setActiveBrand(brand); setMessages([]); setScreen("room"); };
+  const deleteBrand = (id) => { const u = brands.filter(b => b.id !== id); setBrands(u); saveBrands(u); try { localStorage.removeItem(`cr_room_${id}`); } catch {} };
+  const updateMessages = (msgs) => { setMessages(msgs); if (activeBrand) saveRoom(activeBrand.id, msgs); };
 
-  const runDiagnosis = async () => {
-    if (!brandData || loading) return;
-    setLoading(true);
-    setOutput("");
+  if (screen === "home") return <Home brands={brands} onOpen={openBrand} onNew={() => setScreen("setup")} onDelete={deleteBrand} />;
+  if (screen === "setup") return <Setup onBack={() => setScreen("home")} onCreate={createBrand} />;
+  return <Room brand={activeBrand} messages={messages} onBack={() => setScreen("home")} onUpdateMessages={updateMessages} />;
+}
 
-    const metricsText = `
-CAMPAIGN METRICS:
-- Amount Spent: ${metrics.spent || "Not provided"}
-- Purchases: ${metrics.purchases || "Not provided"}
-- Cost Per Purchase (CPA): ${metrics.cpa || "Not provided"}
-- ROAS: ${metrics.roas || "Not provided"}
-- Hook Rate: ${metrics.hookRate || "Not provided"}%
-- Hold Rate: ${metrics.holdRate || "Not provided"}%
-- Unique Outbound CTR: ${metrics.ctr || "Not provided"}%
-- Cost Per Link Click: ${metrics.cpc || "Not provided"}
-- CPM: ${metrics.cpm || "Not provided"}
-- Frequency: ${metrics.frequency || "Not provided"}
-- Reach: ${metrics.reach || "Not provided"}
-- Impressions: ${metrics.impressions || "Not provided"}
-
-QUALITATIVE NOTES:
-- Ad Format: ${metrics.format || "Not provided"}
-- Messaging Angle Used: ${metrics.angle || "Not provided"}
-- Creator/Talent Notes: ${metrics.creator || "Not provided"}
-- Production Quality: ${metrics.production || "Not provided"}
-- Additional Observations: ${metrics.notes || "Not provided"}
-${activePersona ? `- Persona This Ad Was Built For: ${activePersona}` : ""}
-${activeAngle ? `- Angle Tested: ${activeAngle}` : ""}`;
-
-    try {
-      const res = await fetch("/api/claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 2000,
-          system: DIAGNOSIS_SYSTEM(brandData),
-          messages: [{ role: "user", content: `Diagnose this Meta ads campaign data and tell me exactly what it means and what to do next:\n\n${metricsText}` }]
-        })
-      });
-      const data = await res.json();
-      setOutput(data.content?.[0]?.text || "Something went wrong. Try again.");
-    } catch {
-      setOutput("Connection error. Check your network and try again.");
-    }
-    setLoading(false);
-  };
-
-  const runCreative = async () => {
-    if (!brandData || loading) return;
-    setLoading(true);
-    setOutput("");
-
-    const context = `
-${activePersona ? `TARGET PERSONA: ${activePersona}` : "Use all personas from the strategy doc, prioritising the core customer"}
-${activeAngle ? `FOCUS ANGLE: ${activeAngle}` : "Generate diverse angles across all intersections"}
-${userIdeas ? `STRATEGIST'S ADDITIONAL IDEAS & OBSERVATIONS:\n${userIdeas}` : ""}`;
-
-    try {
-      const res = await fetch("/api/claude", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 3000,
-          system: CREATIVE_SYSTEM(brandData, context),
-          messages: [{ role: "user", content: "Generate a complete creative batch for this brand using all frameworks. Make it specific to this brand's actual customer language and strategy — not generic." }]
-        })
-      });
-      const data = await res.json();
-      setOutput(data.content?.[0]?.text || "Something went wrong. Try again.");
-    } catch {
-      setOutput("Connection error. Check your network and try again.");
-    }
-    setLoading(false);
-  };
-
-  if (screen === "landing") return <Landing onEnter={() => setScreen("upload")} />;
-  if (screen === "upload") return (
-    <Upload
-      fileRef={fileRef}
-      uploadStatus={uploadStatus}
-      brandName={brandName}
-      brandData={brandData}
-      onUpload={handleFileUpload}
-      onManual={(text) => { setBrandData(text); setBrandName("Your Brand"); setUploadStatus("done"); }}
-      onContinue={() => setScreen("hub")}
-    />
-  );
-
+// ─── HOME ─────────────────────────────────────────────────────────────────────
+function Home({ brands, onOpen, onNew, onDelete }) {
+  const [confirmDelete, setConfirmDelete] = useState(null);
   return (
-    <div style={s.app}>
-      {/* Top bar */}
-      <div style={s.topbar}>
-        <div style={s.topbarLeft}>
-          <div style={s.logo}>CR</div>
-          <div>
-            <div style={s.topbarTitle}>The Creative Room</div>
-            <div style={s.topbarSub}>{brandName} · Meta Ads Intelligence</div>
+    <div style={p.page}>
+      <div style={p.homeWrap}>
+        <div style={p.homeHeader}>
+          <div style={p.logoRow}>
+            <div style={p.logo}>CR</div>
+            <div><div style={p.appName}>The Creative Room</div><div style={p.appSub}>Meta Ads Intelligence · by Wasan Al · @foreveronajourney</div></div>
           </div>
+          <button onClick={onNew} style={p.newBrandBtn} onMouseEnter={e=>e.currentTarget.style.opacity=".9"} onMouseLeave={e=>e.currentTarget.style.opacity="1"}>+ New Brand Room</button>
         </div>
-        <div style={s.topbarRight}>
-          <button onClick={() => { setMode("diagnose"); setOutput(""); }} style={{ ...s.modeBtn, ...(mode === "diagnose" ? s.modeBtnActive : {}) }}>
-            📊 Diagnose Data
-          </button>
-          <button onClick={() => { setMode("create"); setOutput(""); }} style={{ ...s.modeBtn, ...(mode === "create" ? s.modeBtnActiveGreen : {}) }}>
-            ✦ Generate Creative
-          </button>
-          <button onClick={() => { setScreen("upload"); setUploadStatus("idle"); setBrandData(""); }} style={s.switchBtn}>
-            Switch Brand
-          </button>
+
+        <div style={p.storageNote}>
+          <span>💾</span>
+          <span>Your brand rooms are saved in <strong>this browser on this device</strong>. They survive closing tabs and restarting your computer — but <strong>do not clear your browser history or cache</strong> or your sessions will be permanently lost. Always download important outputs after each session.</span>
         </div>
-      </div>
 
-      {/* Main */}
-      <div style={s.main}>
-        {!mode && <ModeSelect onSelect={setMode} brandName={brandName} />}
-
-        {mode === "diagnose" && (
-          <DiagnosePanel
-            metrics={metrics}
-            setMetrics={setMetrics}
-            activePersona={activePersona}
-            setActivePersona={setActivePersona}
-            activeAngle={activeAngle}
-            setActiveAngle={setActiveAngle}
-            brandData={brandData}
-            onRun={runDiagnosis}
-            loading={loading}
-          />
+        {brands.length === 0 ? (
+          <div style={p.emptyState}>
+            <div style={p.emptyIcon}>✦</div>
+            <div style={p.emptyTitle}>No brands yet</div>
+            <div style={p.emptySub}>Upload a strategy document from The Strategy Session to create your first brand room</div>
+            <button onClick={onNew} style={p.emptyBtn}>Create First Brand Room →</button>
+          </div>
+        ) : (
+          <div style={p.brandGrid}>
+            {brands.map(b => (
+              <div key={b.id} style={p.brandCard} onClick={() => onOpen(b)}
+                onMouseEnter={e=>e.currentTarget.style.borderColor="#d4a853"}
+                onMouseLeave={e=>e.currentTarget.style.borderColor="#e8e0d4"}>
+                <div style={p.brandCardTop}>
+                  <div style={p.brandInitial}>{b.name[0]?.toUpperCase()}</div>
+                  <button onClick={e=>{e.stopPropagation();setConfirmDelete(b.id);}} style={p.deleteBtn}>✕</button>
+                </div>
+                <div style={p.brandCardName}>{b.name}</div>
+                <div style={p.brandCardMeta}>{loadRoom(b.id).length} messages · {new Date(b.created).toLocaleDateString()}</div>
+                <div style={p.brandCardOpen}>Open Room →</div>
+              </div>
+            ))}
+          </div>
         )}
 
-        {mode === "create" && (
-          <CreatePanel
-            activePersona={activePersona}
-            setActivePersona={setActivePersona}
-            activeAngle={activeAngle}
-            setActiveAngle={setActiveAngle}
-            userIdeas={userIdeas}
-            setUserIdeas={setUserIdeas}
-            brandData={brandData}
-            onRun={runCreative}
-            loading={loading}
-          />
-        )}
-
-        {/* Output */}
-        {(loading || output) && (
-          <div ref={outputRef} style={s.outputSection}>
-            <div style={s.outputHeader}>
-              <div style={s.outputDot} />
-              <span style={s.outputLabel}>{mode === "diagnose" ? "DIAGNOSIS" : "CREATIVE BATCH"}</span>
+        {confirmDelete && (
+          <div style={p.overlay}>
+            <div style={p.modal}>
+              <div style={p.modalTitle}>Delete this brand room?</div>
+              <div style={p.modalSub}>All conversation history will be permanently deleted. This cannot be undone.</div>
+              <div style={p.modalBtns}>
+                <button onClick={()=>setConfirmDelete(null)} style={p.modalCancel}>Cancel</button>
+                <button onClick={()=>{deleteBrand(confirmDelete);setConfirmDelete(null);}} style={p.modalConfirm}>Delete</button>
+              </div>
             </div>
-            {loading ? (
-              <div style={s.loadingBox}>
-                <div style={s.loadingDots}>
-                  {[0,1,2].map(i => <span key={i} style={{ ...s.dot, animationDelay: `${i*0.2}s` }} />)}
-                </div>
-                <div style={s.loadingText}>{mode === "diagnose" ? "Diagnosing your campaign data..." : "Building your creative batch..."}</div>
-              </div>
-            ) : (
-              <div style={s.outputContent}>
-                <OutputRenderer content={output} />
-                <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-                  <button onClick={() => { navigator.clipboard.writeText(output); }} style={s.copyBtn}>
-                    Copy Text
-                  </button>
-                  <button onClick={() => {
-                    const date = new Date().toISOString().split("T")[0];
-                    const label = mode === "diagnose" ? "Diagnosis" : "Creative-Batch";
-                    const filename = `${brandName}-${label}-${date}.txt`;
-                    const header = `THE CREATIVE ROOM\n${brandName} — ${label}\nGenerated: ${date}\nby Wasan Al · @foreveronajourney\n${"─".repeat(60)}\n\n`;
-                    const blob = new Blob([header + output], { type: "text/plain" });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement("a");
-                    a.href = url; a.download = filename; a.click();
-                    URL.revokeObjectURL(url);
-                  }} style={{ ...s.copyBtn, borderColor: "#7c6aff44", color: "#7c6aff" }}>
-                    Download .txt
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
-
-      <style>{`
-        @keyframes dotPulse { 0%,100%{opacity:.3;transform:scale(.7)} 50%{opacity:1;transform:scale(1)} }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(12px)} to{opacity:1;transform:translateY(0)} }
-        * { box-sizing:border-box; margin:0; padding:0; }
-        body { background:#F7F3EE; }
-        ::-webkit-scrollbar { width:4px; }
-        ::-webkit-scrollbar-track { background:#F7F3EE; }
-        ::-webkit-scrollbar-thumb { background:#d8cfc4; border-radius:2px; }
-        textarea::placeholder, input::placeholder { color:#bbb; }
-        input:focus, textarea:focus, select:focus { outline:none; }
-      `}</style>
+      <style>{css}</style>
     </div>
   );
 }
 
-// ─── OUTPUT RENDERER ──────────────────────────────────────────────────────────
-function OutputRenderer({ content }) {
-  const lines = content.split("\n");
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+function Setup({ onBack, onCreate }) {
+  const [name, setName] = useState("");
+  const [doc, setDoc] = useState("");
+  const fileRef = useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const text = await file.text(); setDoc(text);
+    if (!name) {
+      const first = text.split("\n").find(l=>l.trim())?.replace(/[#*_]/g,"").trim()||"";
+      setName(first.split("—")[0].split("|")[0].trim().slice(0,40) || file.name.replace(/\.[^.]+$/,""));
+    }
+  };
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {lines.map((line, i) => {
-        if (line.startsWith("## ")) return <div key={i} style={s.outH2}>{line.replace("## ", "")}</div>;
-        if (line.startsWith("### ")) return <div key={i} style={s.outH3}>{line.replace("### ", "")}</div>;
-        if (line.startsWith("**") && line.endsWith("**")) return <div key={i} style={s.outBold}>{line.replace(/\*\*/g, "")}</div>;
-        if (line.startsWith("- ") || line.startsWith("* ")) return <div key={i} style={s.outBullet}>· {line.slice(2)}</div>;
-        if (line.startsWith("**") && line.includes(":**")) {
-          const [label, ...rest] = line.split(":**");
-          return <div key={i} style={s.outField}><span style={s.outFieldLabel}>{label.replace(/\*\*/g, "")}:</span> {rest.join(":").replace(/\*\*/g, "")}</div>;
-        }
-        if (line === "---") return <div key={i} style={s.outDivider} />;
-        if (line.trim() === "") return <div key={i} style={{ height: 8 }} />;
-        return <div key={i} style={s.outBody}>{line.replace(/\*\*/g, "").replace(/\*/g, "")}</div>;
+    <div style={p.page}>
+      <div style={p.setupWrap}>
+        <button onClick={onBack} style={p.backBtn}>← Back to Brands</button>
+        <div style={p.setupLabel}>NEW BRAND ROOM</div>
+        <h2 style={p.setupTitle}>Upload your strategy document</h2>
+        <p style={p.setupSub}>This is the document from The Strategy Session app. The Creative Room uses everything inside — personas, language bank, competitor research, strategic foundation — as the foundation for every session.</p>
+
+        <div onClick={()=>fileRef.current?.click()} style={{...p.dropzone,...(doc?p.dropzoneDone:{})}}
+          onMouseEnter={e=>{if(!doc)e.currentTarget.style.borderColor="#7c6aff"}}
+          onMouseLeave={e=>{if(!doc)e.currentTarget.style.borderColor="#e0d8cc"}}>
+          <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
+          {doc ? (<>
+            <div style={{color:"#4a8a4a",fontSize:11,fontFamily:"monospace",letterSpacing:2,marginBottom:6}}>● DOCUMENT LOADED</div>
+            <div style={{color:"#1C1C1E",fontSize:15}}>{name}</div>
+            <div style={{color:"#aaa",fontSize:11,marginTop:4}}>{doc.length.toLocaleString()} characters · click to replace</div>
+          </>) : (<>
+            <div style={{fontSize:32,marginBottom:12}}>📄</div>
+            <div style={{color:"#888",fontSize:14}}>Click to upload strategy document</div>
+            <div style={{color:"#ccc",fontSize:11,fontFamily:"monospace",marginTop:6}}>.txt · .md · .doc · .docx</div>
+          </>)}
+        </div>
+
+        <div style={p.orDiv}><div style={p.orLine}/><span style={p.orTxt}>OR PASTE MANUALLY</span><div style={p.orLine}/></div>
+        <textarea value={doc} onChange={e=>{setDoc(e.target.value);if(e.target.value&&!name)setName("My Brand");}}
+          placeholder="Paste the full strategy document — personas, language bank, competitor research, strategic foundation, everything..."
+          rows={6} style={p.textarea}
+          onFocus={e=>e.target.style.borderColor="#7c6aff"} onBlur={e=>e.target.style.borderColor="#e0d8cc"}/>
+
+        {doc && (<>
+          <div style={{marginTop:20}}>
+            <div style={p.inputLabel}>BRAND NAME</div>
+            <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Meltee, KOHLBRA..." style={p.input}
+              onFocus={e=>e.target.style.borderColor="#7c6aff"} onBlur={e=>e.target.style.borderColor="#e0d8cc"}/>
+          </div>
+          <button onClick={()=>onCreate({id:Date.now().toString(),name:name.trim(),doc,created:Date.now()})}
+            disabled={!name.trim()} style={{...p.createBtn,opacity:name.trim()?1:.4}}>
+            Create Brand Room for {name||"..."} →
+          </button>
+        </>)}
+      </div>
+      <style>{css}</style>
+    </div>
+  );
+}
+
+// ─── ROOM ─────────────────────────────────────────────────────────────────────
+function Room({ brand, messages, onBack, onUpdateMessages }) {
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState(null);
+  const bottomRef = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages, loading]);
+
+  const selectMode = async (m) => {
+    setMode(m);
+    setLoading(true);
+    const intro = m === "diagnose"
+      ? `I have your brand strategy loaded — I know the personas, language bank, competitive landscape, and strategic foundation for ${brand.name}.\n\nBefore we look at any numbers: which ad or campaign are we diagnosing? Tell me which persona it was built for and what angle you tested. That context changes everything about how I read the data.`
+      : `Let's build your next creative batch for ${brand.name}. I have everything from the strategy doc ready to go.\n\nBefore I build, three quick questions:\n1. Which persona are we targeting — or do you want a full mix across all of them?\n2. Any specific angle you want to explore?\n3. Anything you've seen working recently — your own ads, a competitor, something in the comments — that I should factor in?`;
+    onUpdateMessages([...messages, { role:"assistant", content:intro, id:Date.now() }]);
+    setLoading(false);
+  };
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
+    const userMsg = { role:"user", content:input.trim(), id:Date.now() };
+    const newMsgs = [...messages, userMsg];
+    onUpdateMessages(newMsgs);
+    setInput("");
+    setLoading(true);
+    try {
+      const reply = await callClaude(newMsgs, brand.doc);
+      onUpdateMessages([...newMsgs, { role:"assistant", content:reply, id:Date.now()+1 }]);
+    } catch {
+      onUpdateMessages([...newMsgs, { role:"assistant", content:"Connection error — check your internet and try again.", id:Date.now()+1 }]);
+    }
+    setLoading(false);
+  };
+
+  const downloadLast = () => {
+    const last = [...messages].reverse().find(m=>m.role==="assistant");
+    if (!last) return;
+    const date = new Date().toISOString().split("T")[0];
+    const label = mode==="diagnose"?"Diagnosis":"Creative-Batch";
+    const header = `THE CREATIVE ROOM — ${brand.name}\n${label} · ${date}\nby Wasan Al · @foreveronajourney\n${"─".repeat(60)}\n\n`;
+    const blob = new Blob([header+last.content],{type:"text/plain"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href=url; a.download=`${brand.name}-${label}-${date}.txt`; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const newSession = () => { onUpdateMessages([]); setMode(null); };
+
+  return (
+    <div style={p.roomWrap}>
+      <div style={p.sidebar}>
+        <div>
+          <button onClick={onBack} style={p.backBtnSide}>← All Brands</button>
+          <div style={p.sidebarBrand}>
+            <div style={p.sidebarInitial}>{brand.name[0]?.toUpperCase()}</div>
+            <div style={p.sidebarBrandName}>{brand.name}</div>
+          </div>
+        </div>
+
+        <div>
+          <div style={p.sidebarLabel}>MODE</div>
+          <button onClick={()=>{newSession();setTimeout(()=>selectMode("diagnose"),50);}} style={{...p.modeBtn,...(mode==="diagnose"?p.modeAmber:{})}}>
+            📊 Diagnose Data
+          </button>
+          <button onClick={()=>{newSession();setTimeout(()=>selectMode("create"),50);}} style={{...p.modeBtn,...(mode==="create"?p.modePurple:{})}}>
+            ✦ Generate Creative
+          </button>
+        </div>
+
+        {messages.length > 0 && (
+          <div>
+            <div style={p.sidebarLabel}>ACTIONS</div>
+            <button onClick={downloadLast} style={p.sidebarBtn}>⬇ Download Last Output</button>
+            <button onClick={newSession} style={p.sidebarBtn}>↺ New Session</button>
+          </div>
+        )}
+
+        <div style={p.sidebarNote}>
+          <div>💾</div>
+          <div style={p.sidebarNoteText}>Sessions auto-save in your browser. Don't clear browser history or your work will be lost.</div>
+        </div>
+      </div>
+
+      <div style={p.chatArea}>
+        <div style={p.chatHeader}>
+          <div style={p.chatHeaderTitle}>{mode==="diagnose"?"📊 Diagnosing":mode==="create"?"✦ Creating":"The Creative Room"}</div>
+          <div style={p.chatHeaderSub}>{brand.name}</div>
+        </div>
+
+        <div style={p.messages}>
+          {!mode && messages.length===0 && (
+            <div style={p.modeSelect}>
+              <div style={p.modeSelectTitle}>What are we doing today?</div>
+              <div style={p.modeSelectSub}>Choose a mode to start your session with {brand.name}</div>
+              <div style={p.modeCards}>
+                {[
+                  {m:"diagnose",icon:"📊",title:"Diagnose Data",desc:"You have Meta Ads numbers. Find out exactly what they mean, what broke, and what to do next.",accent:"#d4a853"},
+                  {m:"create",icon:"✦",title:"Generate Creative",desc:"Build a full creative batch — hooks, angles, formats, GBP — all tied to your strategy and customer language.",accent:"#7c6aff"}
+                ].map(({m,icon,title,desc,accent})=>(
+                  <div key={m} style={p.modeCard} onClick={()=>selectMode(m)}
+                    onMouseEnter={e=>e.currentTarget.style.borderColor=accent}
+                    onMouseLeave={e=>e.currentTarget.style.borderColor="#e8e0d4"}>
+                    <div style={p.modeCardIcon}>{icon}</div>
+                    <div style={p.modeCardTitle}>{title}</div>
+                    <div style={p.modeCardDesc}>{desc}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {messages.map(msg=>(
+            <div key={msg.id} style={{...p.msgRow,...(msg.role==="user"?p.msgRowUser:{})}}>
+              {msg.role==="assistant"&&<div style={p.avatar}>CR</div>}
+              <div style={{...p.bubble,...(msg.role==="user"?p.bubbleUser:p.bubbleAI)}}>
+                <MsgContent content={msg.content} isUser={msg.role==="user"}/>
+              </div>
+            </div>
+          ))}
+
+          {loading&&(
+            <div style={p.msgRow}>
+              <div style={p.avatar}>CR</div>
+              <div style={{...p.bubble,...p.bubbleAI}}>
+                <div style={p.dots}>{[0,1,2].map(i=><span key={i} style={{...p.dot,animationDelay:`${i*.2}s`}}/>)}</div>
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef}/>
+        </div>
+
+        {mode&&(
+          <div style={p.inputArea}>
+            <div style={p.inputWrap}>
+              <textarea value={input} onChange={e=>setInput(e.target.value)}
+                onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
+                placeholder={mode==="diagnose"?"Share your metrics or observations...":"Share ideas, what you've seen working, what you want to try..."}
+                rows={1} style={p.chatInput}
+                onInput={e=>{e.target.style.height="auto";e.target.style.height=Math.min(e.target.scrollHeight,120)+"px";}}
+                onFocus={e=>e.target.parentElement.style.borderColor="#7c6aff"}
+                onBlur={e=>e.target.parentElement.style.borderColor="#e0d8cc"}/>
+              <button onClick={send} disabled={!input.trim()||loading} style={{...p.sendBtn,opacity:input.trim()&&!loading?1:.4}}>↑</button>
+            </div>
+            <div style={p.inputHint}>Enter to send · Shift+Enter for new line</div>
+          </div>
+        )}
+      </div>
+      <style>{css}</style>
+    </div>
+  );
+}
+
+function MsgContent({ content, isUser }) {
+  if (isUser) return <div style={{color:"#f0ebe0",fontSize:14,lineHeight:1.7}}>{content}</div>;
+  return (
+    <div style={{display:"flex",flexDirection:"column",gap:3}}>
+      {content.split("\n").map((line,i)=>{
+        if(line.startsWith("## ")) return <div key={i} style={p.h2}>{line.replace(/^## /,"")}</div>;
+        if(line.startsWith("### ")) return <div key={i} style={p.h3}>{line.replace(/^### /,"")}</div>;
+        if(line.match(/^\*\*[^*]+\*\*:/)){ const[l,...r]=line.split(":**"); return <div key={i} style={p.field}><span style={p.fieldLabel}>{l.replace(/\*\*/g,"")}:</span><span style={p.fieldVal}>{r.join(":").replace(/\*\*/g,"")}</span></div>; }
+        if(line.startsWith("**")&&line.endsWith("**")&&!line.slice(2,-2).includes("**")) return <div key={i} style={p.bold}>{line.slice(2,-2)}</div>;
+        if(line.startsWith("- ")||line.startsWith("* ")) return <div key={i} style={p.bullet}>· {line.slice(2).replace(/\*\*/g,"")}</div>;
+        if(line==="---"||line.startsWith("━━━")||line.startsWith("═══")) return <div key={i} style={p.rule}/>;
+        if(!line.trim()) return <div key={i} style={{height:6}}/>;
+        return <div key={i} style={p.body}>{line.replace(/\*\*/g,"").replace(/\*/g,"")}</div>;
       })}
     </div>
   );
 }
 
-// ─── LANDING ──────────────────────────────────────────────────────────────────
-function Landing({ onEnter }) {
-  return (
-    <div style={{ minHeight: "100vh", background: "#F7F3EE", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Palatino Linotype', serif" }}>
-      <div style={{ maxWidth: 580, width: "100%", textAlign: "center" }}>
-        <div style={{ fontSize: 10, letterSpacing: 8, color: "#5a4aaa", fontFamily: "monospace", textTransform: "uppercase", marginBottom: 48 }}>
-          Meta Ads Intelligence System
-        </div>
-        <div style={{ width: 64, height: 64, background: "linear-gradient(135deg,#7c6aff,#4a3aaa)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", fontFamily: "monospace", fontWeight: "bold", margin: "0 auto 32px", boxShadow: "0 8px 40px rgba(124,106,255,.3)" }}>CR</div>
-        <h1 style={{ fontSize: 54, color: "#1C1C1E", fontWeight: "normal", lineHeight: 1.1, marginBottom: 20 }}>
-          The Creative<br />Room
-        </h1>
-        <p style={{ color: "#666", fontSize: 16, lineHeight: 1.9, marginBottom: 52, maxWidth: 420, margin: "0 auto 52px" }}>
-          Upload your brand strategy. Diagnose your Meta ads data. Generate your next creative batch. Built on every framework that moves the needle.
-        </p>
-        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 52, maxWidth: 400, margin: "0 auto 52px" }}>
-          {[
-            ["📊", "Data diagnosis — know exactly what broke and why"],
-            ["✦", "Creative generation — hooks, angles, formats, full GBP"],
-            ["👤", "Persona-driven — every concept tied to a real human"],
-            ["🔁", "Living system — grows with every brand you run"],
-          ].map(([icon, text], i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 14, textAlign: "left", padding: "10px 16px", background: "#fff", borderRadius: 10, border: "1px solid #e8e0d4" }}>
-              <span style={{ fontSize: 16 }}>{icon}</span>
-              <span style={{ color: "#555", fontSize: 13 }}>{text}</span>
-            </div>
-          ))}
-        </div>
-        <button onClick={onEnter} style={{ background: "linear-gradient(135deg,#7c6aff,#4a3aaa)", border: "none", borderRadius: 12, padding: "18px 52px", color: "#fff", fontSize: 16, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, boxShadow: "0 8px 40px rgba(124,106,255,.25)" }}
-          onMouseEnter={e => e.currentTarget.style.boxShadow = "0 12px 50px rgba(124,106,255,.4)"}
-          onMouseLeave={e => e.currentTarget.style.boxShadow = "0 8px 40px rgba(124,106,255,.25)"}>
-          Enter The Room →
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── UPLOAD ───────────────────────────────────────────────────────────────────
-function Upload({ fileRef, uploadStatus, brandName, brandData, onUpload, onManual, onContinue }) {
-  const [manualText, setManualText] = useState("");
-  return (
-    <div style={{ minHeight: "100vh", background: "#F7F3EE", display: "flex", alignItems: "center", justifyContent: "center", padding: 24, fontFamily: "'Palatino Linotype', serif" }}>
-      <div style={{ maxWidth: 600, width: "100%" }}>
-        <div style={{ fontSize: 10, letterSpacing: 6, color: "#5a4aaa", fontFamily: "monospace", marginBottom: 32 }}>STEP 1 — LOAD BRAND STRATEGY</div>
-        <h2 style={{ fontSize: 38, color: "#1C1C1E", fontWeight: "normal", marginBottom: 12 }}>Which brand are we working on?</h2>
-        <p style={{ color: "#666", fontSize: 15, lineHeight: 1.7, marginBottom: 36 }}>
-          Upload the strategy document from your Creative Strategy Session app. The Creative Room will use everything inside it.
-        </p>
-
-        <div
-          onClick={() => fileRef.current?.click()}
-          style={{ border: "2px dashed #d8cfc4", borderRadius: 14, padding: "40px 32px", textAlign: "center", cursor: "pointer", marginBottom: 20, transition: "all .2s", background: uploadStatus === "done" ? "#0a0a18" : "transparent" }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = "#7c6aff"}
-          onMouseLeave={e => e.currentTarget.style.borderColor = uploadStatus === "done" ? "#7c6aff33" : "#d8cfc4"}
-        >
-          <input ref={fileRef} type="file" accept=".txt,.md,.doc,.docx" onChange={onUpload} style={{ display: "none" }} />
-          {uploadStatus === "idle" && <>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>📄</div>
-            <div style={{ color: "#888", fontSize: 14 }}>Click to upload your strategy document</div>
-            <div style={{ color: "#bbb", fontSize: 11, fontFamily: "monospace", marginTop: 8 }}>.txt · .md · .doc · .docx</div>
-          </>}
-          {uploadStatus === "reading" && <div style={{ color: "#7c6aff", fontSize: 14, fontFamily: "monospace" }}>Reading strategy document...</div>}
-          {uploadStatus === "done" && <>
-            <div style={{ color: "#4a8a4a", fontSize: 11, fontFamily: "monospace", letterSpacing: 2, marginBottom: 8 }}>● LOADED</div>
-            <div style={{ color: "#c8c0ff", fontSize: 16 }}>{brandName}</div>
-            <div style={{ color: "#888", fontSize: 11, marginTop: 6 }}>{brandData.length.toLocaleString()} characters read</div>
-          </>}
-          {uploadStatus === "error" && <div style={{ color: "#c06060", fontSize: 14 }}>Couldn't read that file. Try pasting below.</div>}
-        </div>
-
-        <div style={{ color: "#aaa", fontSize: 11, fontFamily: "monospace", marginBottom: 10, letterSpacing: 1 }}>OR PASTE STRATEGY NOTES MANUALLY</div>
-        <textarea
-          value={manualText}
-          onChange={e => setManualText(e.target.value)}
-          placeholder="Paste your brand strategy here — brand name, core customer, language bank, unique mechanism, competitors, everything..."
-          rows={5}
-          style={{ width: "100%", background: "#0d0d18", border: "1px solid #1a1a28", borderRadius: 12, padding: "14px 18px", color: "#888", fontSize: 13, fontFamily: "monospace", resize: "vertical", lineHeight: 1.6 }}
-          onFocus={e => e.target.style.borderColor = "#7c6aff"}
-          onBlur={e => e.target.style.borderColor = "#e0d8cc"}
-        />
-        {manualText.trim() && (
-          <button onClick={() => onManual(manualText)} style={{ marginTop: 10, background: "#fff", border: "1px solid #7c6aff44", borderRadius: 10, padding: "10px 20px", color: "#7c6aff", fontSize: 13, fontFamily: "monospace", cursor: "pointer" }}>
-            Use This Text →
-          </button>
-        )}
-
-        {uploadStatus === "done" && (
-          <button onClick={onContinue} style={{ width: "100%", marginTop: 24, background: "linear-gradient(135deg,#7c6aff,#4a3aaa)", border: "none", borderRadius: 12, padding: "18px", color: "#fff", fontSize: 17, fontFamily: "inherit", cursor: "pointer", letterSpacing: 1, boxShadow: "0 8px 40px rgba(124,106,255,.25)" }}
-            onMouseEnter={e => e.currentTarget.style.boxShadow = "0 12px 50px rgba(124,106,255,.4)"}
-            onMouseLeave={e => e.currentTarget.style.boxShadow = "0 8px 40px rgba(124,106,255,.25)"}>
-            Enter The Creative Room with {brandName} →
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ─── MODE SELECT ──────────────────────────────────────────────────────────────
-function ModeSelect({ onSelect, brandName }) {
-  return (
-    <div style={{ maxWidth: 700, margin: "60px auto", padding: "0 24px", fontFamily: "'Palatino Linotype', serif", animation: "fadeUp .4s ease" }}>
-      <div style={{ fontSize: 11, letterSpacing: 4, color: "#5a4aaa", fontFamily: "monospace", marginBottom: 16 }}>WELCOME BACK</div>
-      <h2 style={{ fontSize: 36, color: "#1C1C1E", fontWeight: "normal", marginBottom: 8 }}>{brandName}</h2>
-      <p style={{ color: "#666", fontSize: 15, marginBottom: 48 }}>What are we doing today?</p>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <ModeCard
-          icon="📊"
-          title="Diagnose Data"
-          desc="You have Meta Ads Manager numbers. Find out exactly what they mean, what broke, and what to do next."
-          accent="#d4a853"
-          onClick={() => onSelect("diagnose")}
-        />
-        <ModeCard
-          icon="✦"
-          title="Generate Creative"
-          desc="Build a full creative batch — hooks, angles, formats, GBP structure — all tied to your brand strategy and customer language."
-          accent="#7c6aff"
-          onClick={() => onSelect("create")}
-        />
-      </div>
-    </div>
-  );
-}
-
-function ModeCard({ icon, title, desc, accent, onClick }) {
-  const [hover, setHover] = useState(false);
-  return (
-    <div onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
-      style={{ background: hover ? "#f0ebe0" : "#fff", border: `1px solid ${hover ? accent + "88" : "#e8e0d4"}`, borderRadius: 16, padding: "28px 24px", cursor: "pointer", transition: "all .2s" }}>
-      <div style={{ fontSize: 28, marginBottom: 14 }}>{icon}</div>
-      <div style={{ color: accent, fontSize: 13, fontFamily: "monospace", letterSpacing: 1, marginBottom: 8 }}>{title.toUpperCase()}</div>
-      <div style={{ color: "#666", fontSize: 13, lineHeight: 1.7 }}>{desc}</div>
-    </div>
-  );
-}
-
-// ─── DIAGNOSE PANEL ───────────────────────────────────────────────────────────
-function DiagnosePanel({ metrics, setMetrics, activePersona, setActivePersona, activeAngle, setActiveAngle, brandData, onRun, loading }) {
-  const up = (k, v) => setMetrics(p => ({ ...p, [k]: v }));
-
-  const personas = extractPersonas(brandData);
-  const angles = ["Identity/Nostalgia", "Problem-First", "Pain-First", "Desire-First", "Social Proof", "Authority/Education", "Tribal Identity", "Founder Story", "Safety/Trust", "Competitor Comparison"];
-
-  return (
-    <div style={{ maxWidth: 820, margin: "32px auto", padding: "0 24px", animation: "fadeUp .3s ease" }}>
-      <div style={s.panelHeader}>
-        <div style={s.panelIcon}>📊</div>
-        <div>
-          <div style={s.panelTitle}>Diagnose Your Data</div>
-          <div style={s.panelSub}>Enter your Meta Ads Manager numbers. The more you fill in, the sharper the diagnosis.</div>
-        </div>
-      </div>
-
-      {/* Persona + Angle selectors */}
-      <div style={s.selectorRow}>
-        <div style={s.selectorGroup}>
-          <div style={s.selectorLabel}>WHICH PERSONA WAS THIS AD FOR?</div>
-          <div style={s.pills}>
-            <Pill label="All / Not sure" active={!activePersona} onClick={() => setActivePersona(null)} accent="#7c6aff" />
-            {personas.map(p => <Pill key={p} label={p} active={activePersona === p} onClick={() => setActivePersona(p)} accent="#d4a853" />)}
-          </div>
-        </div>
-        <div style={s.selectorGroup}>
-          <div style={s.selectorLabel}>WHICH ANGLE DID YOU TEST?</div>
-          <div style={s.pills}>
-            <Pill label="Not sure" active={!activeAngle} onClick={() => setActiveAngle(null)} accent="#7c6aff" />
-            {angles.map(a => <Pill key={a} label={a} active={activeAngle === a} onClick={() => setActiveAngle(a)} accent="#c47c3e" />)}
-          </div>
-        </div>
-      </div>
-
-      {/* Primary KPIs */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>PRIMARY KPIs <span style={s.sectionNote}>— Is it working?</span></div>
-        <div style={s.metricsGrid}>
-          <MetricInput label="Amount Spent ($)" value={metrics.spent} onChange={v => up("spent", v)} placeholder="e.g. 450" />
-          <MetricInput label="Purchases" value={metrics.purchases} onChange={v => up("purchases", v)} placeholder="e.g. 12" />
-          <MetricInput label="Cost Per Purchase ($)" value={metrics.cpa} onChange={v => up("cpa", v)} placeholder="e.g. 37.50" />
-          <MetricInput label="ROAS" value={metrics.roas} onChange={v => up("roas", v)} placeholder="e.g. 2.4" />
-        </div>
-      </div>
-
-      {/* Video metrics */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>VIDEO METRICS <span style={s.sectionNote}>— Why is it working?</span></div>
-        <div style={s.metricsGrid}>
-          <MetricInput label="Hook Rate (%)" value={metrics.hookRate} onChange={v => up("hookRate", v)} placeholder="e.g. 28" hint="3-sec views ÷ impressions × 100" />
-          <MetricInput label="Hold Rate (%)" value={metrics.holdRate} onChange={v => up("holdRate", v)} placeholder="e.g. 14" hint="15-sec views ÷ impressions × 100" />
-          <MetricInput label="Unique Outbound CTR (%)" value={metrics.ctr} onChange={v => up("ctr", v)} placeholder="e.g. 0.8" />
-          <MetricInput label="Cost Per Link Click ($)" value={metrics.cpc} onChange={v => up("cpc", v)} placeholder="e.g. 1.20" />
-        </div>
-      </div>
-
-      {/* Delivery metrics */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>DELIVERY METRICS <span style={s.sectionNote}>— Who is seeing it?</span></div>
-        <div style={s.metricsGrid}>
-          <MetricInput label="CPM ($)" value={metrics.cpm} onChange={v => up("cpm", v)} placeholder="e.g. 18.50" />
-          <MetricInput label="Frequency" value={metrics.frequency} onChange={v => up("frequency", v)} placeholder="e.g. 1.8" hint="Above 4–5 = audience fatigue" />
-          <MetricInput label="Reach" value={metrics.reach} onChange={v => up("reach", v)} placeholder="e.g. 12400" />
-          <MetricInput label="Impressions" value={metrics.impressions} onChange={v => up("impressions", v)} placeholder="e.g. 22300" />
-        </div>
-      </div>
-
-      {/* Qualitative */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>QUALITATIVE NOTES <span style={s.sectionNote}>— Context behind the numbers</span></div>
-        <div style={s.metricsGrid}>
-          <MetricInput label="Ad Format" value={metrics.format} onChange={v => up("format", v)} placeholder="e.g. UGC talking head, static" />
-          <MetricInput label="Messaging Angle Used" value={metrics.angle} onChange={v => up("angle", v)} placeholder="e.g. Identity/Nostalgia" />
-          <MetricInput label="Creator Notes" value={metrics.creator} onChange={v => up("creator", v)} placeholder="e.g. Founder on camera, in car" />
-          <MetricInput label="Production Quality" value={metrics.production} onChange={v => up("production", v)} placeholder="e.g. Raw UGC, high production" />
-        </div>
-        <textarea
-          value={metrics.notes}
-          onChange={e => up("notes", e.target.value)}
-          placeholder="Anything else worth noting — comment sentiment, what you observed, what surprised you, what's working on other ads..."
-          rows={3}
-          style={s.textarea}
-          onFocus={e => e.target.style.borderColor = "#d4a853"}
-          onBlur={e => e.target.style.borderColor = "#e0d8cc"}
-        />
-      </div>
-
-      <button onClick={onRun} disabled={loading} style={{ ...s.runBtn, background: loading ? "#e0d8cc" : "linear-gradient(135deg,#d4a853,#8b5e3c)" }}>
-        {loading ? "Diagnosing..." : "Run Diagnosis →"}
-      </button>
-    </div>
-  );
-}
-
-// ─── CREATE PANEL ─────────────────────────────────────────────────────────────
-function CreatePanel({ activePersona, setActivePersona, activeAngle, setActiveAngle, userIdeas, setUserIdeas, brandData, onRun, loading }) {
-  const personas = extractPersonas(brandData);
-  const angles = [
-    "Identity/Nostalgia (Tribal Identity)", "Problem-First", "Desire-First",
-    "Safety/Trust (Lead-free, clean)", "Founder Story", "Authority/Education",
-    "Competitor Comparison", "Social Proof (Reviews)", "Use Case Demo", "Failed Solutions"
-  ];
-  const funnelStages = ["Top of Funnel — New Audience", "Middle of Funnel — Warm Audience", "Bottom of Funnel — Hot/Retargeting"];
-  const [funnelFocus, setFunnelFocus] = useState(null);
-
-  return (
-    <div style={{ maxWidth: 820, margin: "32px auto", padding: "0 24px", animation: "fadeUp .3s ease" }}>
-      <div style={s.panelHeader}>
-        <div style={{ ...s.panelIcon, background: "linear-gradient(135deg,#7c6aff,#4a3aaa)" }}>✦</div>
-        <div>
-          <div style={s.panelTitle}>Generate Creative Batch</div>
-          <div style={s.panelSub}>Choose your focus. The Creative Room will build a full batch using your brand strategy, language bank, and all frameworks.</div>
-        </div>
-      </div>
-
-      {/* Persona */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>WHICH PERSONA ARE WE BUILDING FOR?</div>
-        <div style={s.pills}>
-          <Pill label="All personas" active={!activePersona} onClick={() => setActivePersona(null)} accent="#7c6aff" />
-          {personas.map(p => <Pill key={p} label={p} active={activePersona === p} onClick={() => setActivePersona(p)} accent="#7c6aff" />)}
-        </div>
-      </div>
-
-      {/* Angle */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>WHICH ANGLE DO YOU WANT TO EXPLORE?</div>
-        <div style={s.sectionNote2}>Leave blank to get diverse angles across all intersections</div>
-        <div style={s.pills}>
-          <Pill label="All angles" active={!activeAngle} onClick={() => setActiveAngle(null)} accent="#7c6aff" />
-          {angles.map(a => <Pill key={a} label={a} active={activeAngle === a} onClick={() => setActiveAngle(a)} accent="#c47c3e" />)}
-        </div>
-      </div>
-
-      {/* Funnel focus */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>FUNNEL STAGE FOCUS?</div>
-        <div style={s.pills}>
-          <Pill label="Full funnel mix" active={!funnelFocus} onClick={() => setFunnelFocus(null)} accent="#7c6aff" />
-          {funnelStages.map(f => <Pill key={f} label={f} active={funnelFocus === f} onClick={() => setFunnelFocus(f)} accent="#3d9e6a" />)}
-        </div>
-      </div>
-
-      {/* User ideas */}
-      <div style={s.section}>
-        <div style={s.sectionTitle}>YOUR IDEAS & OBSERVATIONS</div>
-        <div style={s.sectionNote2}>What have you seen working? What do you want to try? What did a competitor do that caught your eye? What did a comment say that made you think?</div>
-        <textarea
-          value={userIdeas}
-          onChange={e => setUserIdeas(e.target.value)}
-          placeholder={`Examples:\n— "I noticed the dual-application video always gets comments like 'I need this' — want to build more around that moment"\n— "Saw a competitor using before/after with text overlay and it seemed to perform well"\n— "Customer said 'I haven't been able to wear eyeliner for years' — want to lean into the sensitive eyes angle more"\n— "Want to try a static with just the kohl jar and one customer quote"`}
-          rows={6}
-          style={s.textarea}
-          onFocus={e => e.target.style.borderColor = "#7c6aff"}
-          onBlur={e => e.target.style.borderColor = "#e0d8cc"}
-        />
-      </div>
-
-      <button onClick={onRun} disabled={loading} style={{ ...s.runBtn, background: loading ? "#e0d8cc" : "linear-gradient(135deg,#7c6aff,#4a3aaa)" }}>
-        {loading ? "Building creative batch..." : "Generate Creative Batch →"}
-      </button>
-    </div>
-  );
-}
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-function extractPersonas(brandData) {
-  const matches = brandData.match(/\b(Yasmin|Emma|Sarah|Priya|Zara|Diana|Sara|[A-Z][a-z]+ \([A-Z][a-z]+\))\b/g);
-  if (!matches) return ["Core Customer", "Secondary Persona"];
-  return [...new Set(matches)].slice(0, 5);
-}
-
-function Pill({ label, active, onClick, accent }) {
-  return (
-    <button onClick={onClick} style={{
-      background: active ? accent + "18" : "transparent",
-      border: `1px solid ${active ? accent : "#d8cfc4"}`,
-      borderRadius: 20, padding: "5px 14px", color: active ? accent : "#888",
-      fontSize: 11, fontFamily: "monospace", cursor: "pointer", transition: "all .2s", whiteSpace: "nowrap"
-    }}
-      onMouseEnter={e => { if (!active) e.currentTarget.style.borderColor = accent + "55"; }}
-      onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = "#d8cfc4"; }}>
-      {label}
-    </button>
-  );
-}
-
-function MetricInput({ label, value, onChange, placeholder, hint }) {
-  return (
-    <div>
-      <div style={{ color: "#6b5c45", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, marginBottom: 6 }}>{label}</div>
-      <input
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{ width: "100%", background: "#F7F3EE", border: "1px solid #e0d8cc", borderRadius: 8, padding: "10px 14px", color: "#1C1C1E", fontSize: 13, fontFamily: "monospace" }}
-        onFocus={e => e.target.style.borderColor = "#7c6aff"}
-        onBlur={e => e.target.style.borderColor = "#e0d8cc"}
-      />
-      {hint && <div style={{ color: "#aaa", fontSize: 10, fontFamily: "monospace", marginTop: 4 }}>{hint}</div>}
-    </div>
-  );
-}
-
-// ─── STYLES ───────────────────────────────────────────────────────────────────
-const s = {
-  app: { minHeight: "100vh", background: "#F7F3EE", display: "flex", flexDirection: "column", fontFamily: "'Palatino Linotype', serif" },
-  topbar: { background: "#1C1C1E", borderBottom: "1px solid #2a2a2a", padding: "12px 24px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 100, flexWrap: "wrap", gap: 10 },
-  topbarLeft: { display: "flex", alignItems: "center", gap: 12 },
-  logo: { width: 36, height: 36, background: "linear-gradient(135deg,#7c6aff,#4a3aaa)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff", fontFamily: "monospace", fontWeight: "bold", flexShrink: 0 },
-  topbarTitle: { color: "#f0ebe0", fontSize: 14 },
-  topbarSub: { color: "#555", fontSize: 10, fontFamily: "monospace", letterSpacing: 1, marginTop: 2 },
-  topbarRight: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" },
-  modeBtn: { background: "transparent", border: "1px solid #3a3a3a", borderRadius: 8, padding: "6px 14px", color: "#888", fontSize: 11, fontFamily: "monospace", letterSpacing: 1, cursor: "pointer", transition: "all .2s" },
-  modeBtnActive: { borderColor: "#d4a853", color: "#d4a853", background: "rgba(212,168,83,.12)" },
-  modeBtnActiveGreen: { borderColor: "#7c6aff", color: "#c8c0ff", background: "rgba(124,106,255,.12)" },
-  switchBtn: { background: "transparent", border: "1px solid #3a3a3a", borderRadius: 8, padding: "6px 12px", color: "#666", fontSize: 10, fontFamily: "monospace", cursor: "pointer" },
-  main: { flex: 1, overflowY: "auto" },
-  panelHeader: { display: "flex", alignItems: "flex-start", gap: 16, marginBottom: 32 },
-  panelIcon: { width: 44, height: 44, background: "linear-gradient(135deg,#d4a853,#8b5e3c)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 },
-  panelTitle: { color: "#1C1C1E", fontSize: 22, marginBottom: 4 },
-  panelSub: { color: "#666", fontSize: 13, lineHeight: 1.6 },
-  selectorRow: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 24 },
-  selectorGroup: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 12, padding: "16px 18px" },
-  selectorLabel: { color: "#8b7355", fontSize: 9, fontFamily: "monospace", letterSpacing: 2, marginBottom: 12 },
-  pills: { display: "flex", flexWrap: "wrap", gap: 6 },
-  section: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 12, padding: "18px 20px", marginBottom: 16 },
-  sectionTitle: { color: "#8b7355", fontSize: 10, fontFamily: "monospace", letterSpacing: 2, marginBottom: 14 },
-  sectionNote: { color: "#aaa", fontFamily: "monospace" },
-  sectionNote2: { color: "#aaa", fontSize: 11, fontFamily: "monospace", marginBottom: 12, marginTop: -8 },
-  metricsGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 },
-  textarea: { width: "100%", background: "#F7F3EE", border: "1px solid #e0d8cc", borderRadius: 10, padding: "12px 16px", color: "#333", fontSize: 13, fontFamily: "monospace", resize: "vertical", lineHeight: 1.7, marginTop: 4 },
-  runBtn: { width: "100%", border: "none", borderRadius: 12, padding: "18px", color: "#fff", fontSize: 16, fontFamily: "'Palatino Linotype', serif", cursor: "pointer", letterSpacing: 1, marginTop: 8, marginBottom: 40, transition: "all .2s" },
-  outputSection: { maxWidth: 820, margin: "0 auto 60px", padding: "0 24px", animation: "fadeUp .4s ease" },
-  outputHeader: { display: "flex", alignItems: "center", gap: 10, marginBottom: 20, paddingTop: 8, borderTop: "1px solid #e8e0d4" },
-  outputDot: { width: 8, height: 8, borderRadius: "50%", background: "#7c6aff", animation: "dotPulse 2s ease-in-out infinite" },
-  outputLabel: { color: "#8b7355", fontSize: 10, fontFamily: "monospace", letterSpacing: 3 },
-  loadingBox: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 14, padding: "40px", textAlign: "center" },
-  loadingDots: { display: "flex", gap: 6, justifyContent: "center", marginBottom: 16 },
-  dot: { width: 8, height: 8, borderRadius: "50%", background: "#7c6aff", animation: "dotPulse 1.2s ease-in-out infinite", display: "inline-block" },
-  loadingText: { color: "#888", fontSize: 13, fontFamily: "monospace" },
-  outputContent: { background: "#fff", border: "1px solid #e8e0d4", borderRadius: 14, padding: "28px 30px" },
-  copyBtn: { background: "transparent", border: "1px solid #e0d8cc", borderRadius: 8, padding: "8px 18px", color: "#888", fontSize: 11, fontFamily: "monospace", cursor: "pointer" },
-  outH2: { color: "#5a4aaa", fontSize: 16, fontFamily: "monospace", letterSpacing: 1, marginTop: 20, marginBottom: 8, paddingBottom: 6, borderBottom: "1px solid #e8e0d4" },
-  outH3: { color: "#8b5e3c", fontSize: 15, fontWeight: "bold", marginTop: 18, marginBottom: 6 },
-  outBold: { color: "#1C1C1E", fontSize: 14, fontWeight: "bold", marginTop: 6 },
-  outBullet: { color: "#444", fontSize: 13, lineHeight: 1.7, paddingLeft: 16 },
-  outField: { fontSize: 13, lineHeight: 1.8, display: "flex", gap: 8, flexWrap: "wrap" },
-  outFieldLabel: { color: "#5a4aaa", fontFamily: "monospace", fontSize: 11, flexShrink: 0 },
-  outBody: { color: "#444", fontSize: 13, lineHeight: 1.8 },
-  outDivider: { height: 1, background: "#e8e0d4", margin: "12px 0" },
+const p = {
+  page:{minHeight:"100vh",background:"#F7F3EE",fontFamily:"'Palatino Linotype','Book Antiqua',Palatino,serif"},
+  homeWrap:{maxWidth:860,margin:"0 auto",padding:"40px 24px"},
+  homeHeader:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:24,flexWrap:"wrap",gap:12},
+  logoRow:{display:"flex",alignItems:"center",gap:14},
+  logo:{width:44,height:44,background:"linear-gradient(135deg,#7c6aff,#4a3aaa)",borderRadius:12,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,color:"#fff",fontFamily:"monospace",fontWeight:"bold"},
+  appName:{color:"#1C1C1E",fontSize:20},
+  appSub:{color:"#aaa",fontSize:11,fontFamily:"monospace",letterSpacing:1,marginTop:2},
+  newBrandBtn:{background:"linear-gradient(135deg,#d4a853,#8b5e3c)",border:"none",borderRadius:10,padding:"12px 24px",color:"#fff",fontSize:14,fontFamily:"inherit",cursor:"pointer",transition:"opacity .2s"},
+  storageNote:{background:"#fff8e8",border:"1px solid #f0d888",borderRadius:10,padding:"12px 18px",fontSize:12,color:"#7a5c1e",lineHeight:1.8,marginBottom:32,display:"flex",gap:10,alignItems:"flex-start"},
+  emptyState:{textAlign:"center",padding:"80px 24px"},
+  emptyIcon:{fontSize:40,color:"#e0d8cc",marginBottom:16},
+  emptyTitle:{color:"#1C1C1E",fontSize:22,marginBottom:8},
+  emptySub:{color:"#aaa",fontSize:14,marginBottom:32},
+  emptyBtn:{background:"linear-gradient(135deg,#7c6aff,#4a3aaa)",border:"none",borderRadius:10,padding:"14px 28px",color:"#fff",fontSize:15,fontFamily:"inherit",cursor:"pointer"},
+  brandGrid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:16},
+  brandCard:{background:"#fff",border:"1px solid #e8e0d4",borderRadius:14,padding:"20px",cursor:"pointer",transition:"all .2s"},
+  brandCardTop:{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14},
+  brandInitial:{width:40,height:40,background:"linear-gradient(135deg,#d4a853,#8b5e3c)",borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:16,fontWeight:"bold"},
+  deleteBtn:{background:"transparent",border:"none",color:"#ddd",fontSize:14,cursor:"pointer",padding:4},
+  brandCardName:{color:"#1C1C1E",fontSize:16,marginBottom:6},
+  brandCardMeta:{color:"#aaa",fontSize:11,fontFamily:"monospace",marginBottom:12},
+  brandCardOpen:{color:"#8b5e3c",fontSize:12,fontFamily:"monospace"},
+  overlay:{position:"fixed",inset:0,background:"rgba(0,0,0,.4)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999},
+  modal:{background:"#fff",borderRadius:16,padding:"32px",maxWidth:360,width:"90%",textAlign:"center"},
+  modalTitle:{color:"#1C1C1E",fontSize:18,marginBottom:8},
+  modalSub:{color:"#888",fontSize:13,marginBottom:24},
+  modalBtns:{display:"flex",gap:10,justifyContent:"center"},
+  modalCancel:{background:"#f0ebe0",border:"none",borderRadius:8,padding:"10px 20px",color:"#555",fontSize:14,fontFamily:"inherit",cursor:"pointer"},
+  modalConfirm:{background:"#c05050",border:"none",borderRadius:8,padding:"10px 20px",color:"#fff",fontSize:14,fontFamily:"inherit",cursor:"pointer"},
+  setupWrap:{maxWidth:600,margin:"0 auto",padding:"40px 24px"},
+  backBtn:{background:"transparent",border:"none",color:"#aaa",fontSize:13,fontFamily:"monospace",cursor:"pointer",marginBottom:32,padding:0},
+  setupLabel:{fontSize:10,letterSpacing:5,color:"#5a4aaa",fontFamily:"monospace",marginBottom:16},
+  setupTitle:{fontSize:36,color:"#1C1C1E",fontWeight:"normal",marginBottom:12},
+  setupSub:{color:"#666",fontSize:14,lineHeight:1.8,marginBottom:32},
+  dropzone:{border:"2px dashed #e0d8cc",borderRadius:14,padding:"40px 32px",textAlign:"center",cursor:"pointer",marginBottom:20,transition:"all .2s"},
+  dropzoneDone:{border:"2px solid #4a8a4a33",background:"#f8fff8"},
+  orDiv:{display:"flex",alignItems:"center",gap:12,margin:"20px 0"},
+  orLine:{flex:1,height:1,background:"#e0d8cc"},
+  orTxt:{color:"#ccc",fontSize:10,fontFamily:"monospace",whiteSpace:"nowrap"},
+  textarea:{width:"100%",background:"#fff",border:"1px solid #e0d8cc",borderRadius:10,padding:"14px 18px",color:"#333",fontSize:13,fontFamily:"monospace",resize:"vertical",lineHeight:1.7},
+  inputLabel:{color:"#8b7355",fontSize:10,fontFamily:"monospace",letterSpacing:2,marginBottom:8},
+  input:{width:"100%",background:"#fff",border:"1px solid #e0d8cc",borderRadius:10,padding:"14px 18px",color:"#1C1C1E",fontSize:15,fontFamily:"inherit"},
+  createBtn:{width:"100%",marginTop:20,background:"linear-gradient(135deg,#7c6aff,#4a3aaa)",border:"none",borderRadius:12,padding:"18px",color:"#fff",fontSize:16,fontFamily:"inherit",cursor:"pointer",letterSpacing:1},
+  roomWrap:{display:"flex",height:"100vh",background:"#F7F3EE",fontFamily:"'Palatino Linotype','Book Antiqua',Palatino,serif"},
+  sidebar:{width:220,flexShrink:0,background:"#1C1C1E",display:"flex",flexDirection:"column",padding:"20px 16px",gap:24},
+  backBtnSide:{background:"transparent",border:"none",color:"#555",fontSize:11,fontFamily:"monospace",cursor:"pointer",textAlign:"left",padding:0,letterSpacing:1,marginBottom:8},
+  sidebarBrand:{display:"flex",alignItems:"center",gap:10},
+  sidebarInitial:{width:32,height:32,background:"linear-gradient(135deg,#d4a853,#8b5e3c)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,fontWeight:"bold"},
+  sidebarBrandName:{color:"#f0ebe0",fontSize:14},
+  sidebarLabel:{color:"#333",fontSize:9,fontFamily:"monospace",letterSpacing:2,marginBottom:8},
+  modeBtn:{width:"100%",background:"transparent",border:"1px solid #2a2a2a",borderRadius:8,padding:"10px 12px",color:"#555",fontSize:12,fontFamily:"inherit",cursor:"pointer",textAlign:"left",display:"flex",alignItems:"center",gap:8,marginBottom:6,transition:"all .2s"},
+  modeAmber:{background:"rgba(212,168,83,.1)",borderColor:"#d4a85344",color:"#d4a853"},
+  modePurple:{background:"rgba(124,106,255,.1)",borderColor:"#7c6aff44",color:"#c8c0ff"},
+  sidebarBtn:{width:"100%",background:"transparent",border:"1px solid #2a2a2a",borderRadius:8,padding:"8px 12px",color:"#444",fontSize:11,fontFamily:"monospace",cursor:"pointer",textAlign:"left",marginBottom:4},
+  sidebarNote:{marginTop:"auto",background:"#111",borderRadius:10,padding:"12px",display:"flex",gap:8,alignItems:"flex-start",fontSize:14},
+  sidebarNoteText:{color:"#333",fontSize:10,lineHeight:1.6},
+  chatArea:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"},
+  chatHeader:{background:"#fff",borderBottom:"1px solid #e8e0d4",padding:"14px 24px"},
+  chatHeaderTitle:{color:"#1C1C1E",fontSize:15},
+  chatHeaderSub:{color:"#aaa",fontSize:11,fontFamily:"monospace",marginTop:2},
+  messages:{flex:1,overflowY:"auto",padding:"28px 24px",display:"flex",flexDirection:"column",gap:20},
+  modeSelect:{textAlign:"center",padding:"60px 24px"},
+  modeSelectTitle:{color:"#1C1C1E",fontSize:26,marginBottom:8},
+  modeSelectSub:{color:"#aaa",fontSize:14,marginBottom:36},
+  modeCards:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,maxWidth:560,margin:"0 auto"},
+  modeCard:{background:"#fff",border:"1px solid #e8e0d4",borderRadius:14,padding:"24px 20px",cursor:"pointer",textAlign:"left",transition:"all .2s"},
+  modeCardIcon:{fontSize:24,marginBottom:12},
+  modeCardTitle:{color:"#1C1C1E",fontSize:15,marginBottom:8},
+  modeCardDesc:{color:"#888",fontSize:13,lineHeight:1.6},
+  msgRow:{display:"flex",alignItems:"flex-start",gap:12},
+  msgRowUser:{flexDirection:"row-reverse"},
+  avatar:{width:32,height:32,background:"linear-gradient(135deg,#7c6aff,#4a3aaa)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:10,fontFamily:"monospace",fontWeight:"bold",flexShrink:0,marginTop:2},
+  bubble:{maxWidth:"78%",borderRadius:14,padding:"14px 18px",lineHeight:1.7},
+  bubbleAI:{background:"#fff",border:"1px solid #e8e0d4",borderTopLeftRadius:4},
+  bubbleUser:{background:"#1C1C1E",borderTopRightRadius:4},
+  dots:{display:"flex",gap:5,alignItems:"center",padding:"4px 0"},
+  dot:{width:7,height:7,borderRadius:"50%",background:"#ccc",animation:"dotPulse 1.2s ease-in-out infinite",display:"inline-block"},
+  inputArea:{background:"#fff",borderTop:"1px solid #e0d8cc",padding:"14px 20px 16px"},
+  inputWrap:{display:"flex",gap:10,alignItems:"flex-end",background:"#F7F3EE",border:"1px solid #e0d8cc",borderRadius:14,padding:"10px 14px",transition:"border-color .2s"},
+  chatInput:{flex:1,background:"transparent",border:"none",color:"#1C1C1E",fontSize:14,fontFamily:"inherit",resize:"none",lineHeight:1.6,minHeight:24,maxHeight:120},
+  sendBtn:{width:34,height:34,borderRadius:10,background:"linear-gradient(135deg,#7c6aff,#4a3aaa)",border:"none",color:"#fff",fontSize:16,cursor:"pointer",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",transition:"opacity .2s"},
+  inputHint:{color:"#ccc",fontSize:10,fontFamily:"monospace",marginTop:6,textAlign:"center"},
+  h2:{color:"#5a4aaa",fontSize:15,fontFamily:"monospace",letterSpacing:1,marginTop:14,marginBottom:6,paddingBottom:4,borderBottom:"1px solid #e8e0d4"},
+  h3:{color:"#8b5e3c",fontSize:14,fontWeight:"bold",marginTop:12,marginBottom:4},
+  bold:{color:"#1C1C1E",fontSize:14,fontWeight:"bold",marginTop:4},
+  field:{fontSize:13,lineHeight:1.8,display:"flex",gap:6,flexWrap:"wrap"},
+  fieldLabel:{color:"#5a4aaa",fontFamily:"monospace",fontSize:11,flexShrink:0,marginTop:2},
+  fieldVal:{color:"#444"},
+  bullet:{color:"#444",fontSize:13,lineHeight:1.7,paddingLeft:14},
+  body:{color:"#444",fontSize:13,lineHeight:1.8},
+  rule:{height:1,background:"#e8e0d4",margin:"8px 0"},
 };
+
+const css = `
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#F7F3EE;}
+  ::-webkit-scrollbar{width:3px;}
+  ::-webkit-scrollbar-track{background:#F7F3EE;}
+  ::-webkit-scrollbar-thumb{background:#d8cfc4;border-radius:2px;}
+  textarea::placeholder,input::placeholder{color:#ccc;}
+  textarea{caret-color:#8b5e3c;}
+  input:focus,textarea:focus{outline:none;}
+  @keyframes dotPulse{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+`;
