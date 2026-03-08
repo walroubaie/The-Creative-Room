@@ -169,7 +169,7 @@ async function callClaude(messages, system, maxTokens = 1000) {
   const d = await res.json();
   return (d.content?.[0]?.text || "").trim();
 }
-async function callJSON(prompt, maxTokens = 2000) {
+async function callJSON(prompt, maxTokens = 4000) {
   const text = await callClaude([{role:"user",content:prompt}], null, maxTokens);
   // Try to extract JSON from the response robustly
   const clean = text.trim();
@@ -434,7 +434,7 @@ function ThinkMode({brand, onUpdate}) {
         text = await file.text();
       }
       if (!text?.trim()) throw new Error("Could not extract text from this file.");
-      const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,12000));
+      const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,8000), 4000);
       const parsed = JSON.parse(raw);
       onUpdate(additiveMerge(brand, parsed));
     } catch(err) { alert("Could not parse document: " + (err.message || "Unknown error. Try a .docx or .txt file.")); }
@@ -802,7 +802,7 @@ function BrandInputsTab({brand, onUpdate}) {
         text = await file.text();
       }
       if (!text?.trim()) throw new Error("Could not extract text from this file.");
-      const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,12000));
+      const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,8000), 4000);
       const parsed = JSON.parse(raw);
       onUpdate(additiveMerge(brand, parsed));
       setSetupMode(null);
