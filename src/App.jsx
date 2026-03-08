@@ -171,7 +171,16 @@ async function callClaude(messages, system, maxTokens = 1000) {
 }
 async function callJSON(prompt, maxTokens = 2000) {
   const text = await callClaude([{role:"user",content:prompt}], null, maxTokens);
-  return text.replace("```json","").replace("```","").trim();
+  // Try to extract JSON from the response robustly
+  const clean = text.trim();
+  // Strip markdown code fences
+  const stripped = clean.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
+  // Find the outermost { } or [ ] block in case there's surrounding text
+  const objMatch = stripped.match(/\{[\s\S]*\}/);
+  const arrMatch = stripped.match(/\[[\s\S]*\]/);
+  if (objMatch) return objMatch[0];
+  if (arrMatch) return arrMatch[0];
+  return stripped;
 }
 
 // ── ATOMS ─────────────────────────────────────────────────────────────────────
