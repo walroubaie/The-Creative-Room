@@ -175,15 +175,32 @@ async function callClaude(messages, system, maxTokens = 1000) {
 }
 async function callJSON(prompt, maxTokens = 4000) {
   const text = await callClaude([{role:"user",content:prompt}], null, maxTokens);
-  // Try to extract JSON from the response robustly
   const clean = text.trim();
   // Strip markdown code fences
   const stripped = clean.replace(/^```json\s*/i, "").replace(/^```\s*/i, "").replace(/\s*```$/i, "").trim();
-  // Find the outermost { } or [ ] block in case there's surrounding text
-  const objMatch = stripped.match(/\{[\s\S]*\}/);
-  const arrMatch = stripped.match(/\[[\s\S]*\]/);
-  if (objMatch) return objMatch[0];
-  if (arrMatch) return arrMatch[0];
+  // Find the FIRST complete JSON object or array by counting braces/brackets
+  const findJSON = (str, open, close) => {
+    const start = str.indexOf(open);
+    if (start === -1) return null;
+    let depth = 0;
+    let inStr = false;
+    let escape = false;
+    for (let i = start; i < str.length; i++) {
+      const c = str[i];
+      if (escape) { escape = false; continue; }
+      if (c === "\\") { escape = true; continue; }
+      if (c === "\"" && !escape) { inStr = !inStr; continue; }
+      if (inStr) continue;
+      if (c === open) depth++;
+      if (c === close) { depth--; if (depth === 0) return str.slice(start, i + 1); }
+    }
+    return null;
+  };
+  // Try array first (hooks), then object (brand data)
+  const arr = findJSON(stripped, "[", "]");
+  if (arr) return arr;
+  const obj = findJSON(stripped, "{", "}");
+  if (obj) return obj;
   return stripped;
 }
 
