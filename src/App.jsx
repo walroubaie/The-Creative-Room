@@ -161,13 +161,17 @@ const EMPTY_BRAND = {
 
 // ── API ────────────────────────────────────────────────────────────────────────
 async function callClaude(messages, system, maxTokens = 1000) {
+  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
+  if (!apiKey) throw new Error("API key not found. Check VITE_ANTHROPIC_API_KEY in Vercel environment variables.");
   const body = { model:"claude-sonnet-4-20250514", max_tokens:maxTokens, messages };
   if (system) body.system = system;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST", headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify(body),
+    method:"POST", headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify(body),
   });
   const d = await res.json();
-  return (d.content?.[0]?.text || "").trim();
+  if (!res.ok) throw new Error("API error " + res.status + ": " + (d.error?.message || JSON.stringify(d)));
+  if (!d.content?.[0]?.text) throw new Error("Empty response from API. Response: " + JSON.stringify(d).slice(0, 200));
+  return d.content[0].text.trim();
 }
 async function callJSON(prompt, maxTokens = 4000) {
   const text = await callClaude([{role:"user",content:prompt}], null, maxTokens);
@@ -437,7 +441,7 @@ function ThinkMode({brand, onUpdate}) {
       const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,8000), 4000);
       const parsed = JSON.parse(raw);
       onUpdate(additiveMerge(brand, parsed));
-    } catch(err) { alert("Could not parse document: " + (err.message || "Unknown error. Try a .docx or .txt file.")); }
+    } catch(err) { alert("Upload failed: " + (err.message || "Unknown error")); }
     setParsing(false);
   };
 
@@ -464,9 +468,9 @@ function ThinkMode({brand, onUpdate}) {
       const reply = await callClaude(newMsgs.map(m=>({role:m.role,content:m.content})), getSystem(thinkMode), 1500);
       const final = [...newMsgs, {role:"assistant",content:reply,id:Date.now()+1}];
       setMessages(final); onUpdate({...brand,thinkMessages:final});
-    } catch {
-      const err = [...newMsgs, {role:"assistant",content:"Connection error — try again.",id:Date.now()+1}];
-      setMessages(err);
+    } catch(e) {
+      const errMsgs = [...newMsgs, {role:"assistant",content:"Error: "+(e.message||"Connection error — try again."),id:Date.now()+1}];
+      setMessages(errMsgs);
     }
     setLoading(false);
   };
@@ -493,7 +497,7 @@ function ThinkMode({brand, onUpdate}) {
       if ((parsed.new_trigger_phrases||[]).length) fields.push({key:"lang_trigger",label:"New trigger phrases",value:parsed.new_trigger_phrases.join(" | ")});
       if ((parsed.new_proof_points||[]).length) fields.push({key:"proof_points",label:"Proof points",value:parsed.new_proof_points.join(" | ")});
       setSavePreview({fields, notes:parsed.notes||""});
-    } catch { setSavePreview({fields:[], notes:"Could not extract insights. Try again."}); }
+    } catch(err) { setSavePreview({fields:[], notes:"Error: "+(err.message||"Could not extract insights")}); }
     setSaving(false);
   };
 
@@ -806,7 +810,7 @@ function BrandInputsTab({brand, onUpdate}) {
       const parsed = JSON.parse(raw);
       onUpdate(additiveMerge(brand, parsed));
       setSetupMode(null);
-    } catch(err) { alert("Could not parse document: " + (err.message || "Unknown error. Try a .docx or .txt file.")); }
+    } catch(err) { alert("Upload failed: " + (err.message || "Unknown error")); }
     setParsing(false);
   };
 
@@ -1184,11 +1188,17 @@ function HookTab({brand, onUpdate, prefill, clearPrefill}) {
     const avoidBlock = prev.length>0 ? "\n\nDo NOT repeat or closely resemble these previous hooks:\n"+prev.map((h,i)=>(i+1)+". \""+h+"\"").join("\n") : "";
     const prompt = "You are a senior direct response creative strategist. Generate hooks that sound like real customers talking to a friend — never like a brand writing ads.\n\n"+buildCtx()+avoidBlock+"\n\nTASK: Generate exactly 4 hooks. Each MUST:\n1. Follow the "+sel.formula+" formula structure precisely\n2. Use at least one EXACT phrase from the language bank — word for word\n3. Respect the "+sel.awareness+" awareness rule — especially what must NOT appear\n4. Activate the "+sel.trigger+" emotion as the entry point\n5. Sound like a real person, never a brand\n6. Be distinctly different from each other\n7. HOOK TEXT must be under 10 words. Hard limit. This is the opening LINE only.\n\nFor hook_visual: specific, concrete — who, where, what you see.\nFor hook_audio: tone, pacing, ambient sound. N/A for static image.\n\nReturn ONLY raw JSON array, no markdown:\n[{\"hook_text\":\"\",\"hook_visual\":\"\",\"hook_audio\":\"\"},{\"hook_text\":\"\",\"hook_visual\":\"\",\"hook_audio\":\"\"},{\"hook_text\":\"\",\"hook_visual\":\"\",\"hook_audio\":\"\"},{\"hook_text\":\"\",\"hook_visual\":\"\",\"hook_audio\":\"\"}]";
     try {
-      const raw = await callJSON(prompt, 1500);
+      const raw = await callJSON(prompt, 2000);
+      console.log("Hook raw response:", raw);
       const parsed = JSON.parse(raw);
+      if (!Array.isArray(parsed)) throw new Error("Response was not an array: " + raw.slice(0,200));
+      if (parsed.length === 0) throw new Error("API returned empty array");
       setHooks(parsed);
       setAllPrevHooks(p=>[...p,...parsed.map(h=>h.hook_text)]);
-    } catch { setHooks([{hook_text:"Could not generate hooks. Please try again.",hook_visual:"",hook_audio:""}]); }
+    } catch(err) {
+      console.error("Hook generation error:", err);
+      setHooks([{hook_text:"Error: " + (err.message||"Unknown error"), hook_visual:"Check browser console (F12) for details.", hook_audio:""}]);
+    }
     setLoading(false);
   };
 
@@ -1208,7 +1218,7 @@ function HookTab({brand, onUpdate, prefill, clearPrefill}) {
       const a = JSON.parse(partA);
       const b = JSON.parse(partB);
       setBrief({...a,...b,hook_text:hookToUse,hook_visual:hooks[chosen]?.hook_visual||"",hook_audio:hooks[chosen]?.hook_audio||""});
-    } catch { setBrief({error:true}); }
+    } catch(err) { setBrief({error:true, message: err.message}); }
     setLoading(false);
   };
 
@@ -1327,6 +1337,11 @@ function HookTab({brand, onUpdate, prefill, clearPrefill}) {
       {stage==="brief" && (
         <div>
           {loading && <div style={{background:T.surface,border:"1.5px solid "+T.border,borderRadius:7,padding:"16px",textAlign:"center",fontSize:13,color:T.dim,fontFamily:T.font}}>Generating brief...</div>}
+          {!loading && brief && brief.error && (
+            <div style={{background:"#fdf0f0",border:"1.5px solid #e0b0ae",borderRadius:7,padding:"14px 16px",fontSize:13,color:"#78201e",fontFamily:T.font}}>
+              Brief generation failed: {brief.message || "Unknown error. Check your API key in Vercel settings."}
+            </div>
+          )}
           {!loading && brief && !brief.error && (
             <div style={{background:T.surface,border:"2px solid "+T.goldB,borderRadius:10,overflow:"hidden"}}>
               <div style={{background:T.goldL,padding:"12px 18px",borderBottom:"1px solid "+T.goldB+"50",display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
@@ -1410,7 +1425,7 @@ function ExploreTab({brand, onUpdate, onOpenInHookBuilder}) {
         null, 400
       );
       setAngleInsight(p=>({...p,[angle]:insight}));
-    } catch { setAngleInsight(p=>({...p,[angle]:"Could not generate insight. Try again."})); }
+    } catch(err) { setAngleInsight(p=>({...p,[angle]:"Error: "+(err.message||"Could not generate")})); }
   };
 
   const generatePersonaSuggestions = async () => {
@@ -1419,7 +1434,7 @@ function ExploreTab({brand, onUpdate, onOpenInHookBuilder}) {
     try {
       const raw = await callJSON(prompt, 1200);
       setPersonaSuggestions(JSON.parse(raw));
-    } catch { setPersonaSuggestions([{name:"Error",identity:"Could not generate. Try again.",trigger:"",best_angle:"",awareness_stage:"",why:""}]); }
+    } catch(err) { setPersonaSuggestions([{name:"Error",identity:"Error: "+(err.message||"Could not generate"),trigger:"",best_angle:"",awareness_stage:"",why:""}]); }
     setLoadingPersonas(false);
   };
 
