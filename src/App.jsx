@@ -196,11 +196,14 @@ async function callJSON(prompt, maxTokens = 4000) {
     }
     return null;
   };
-  // Try array first (hooks), then object (brand data)
+  // Find both, return whichever appears first in the string (closest to start)
   const arr = findJSON(stripped, "[", "]");
-  if (arr) return arr;
   const obj = findJSON(stripped, "{", "}");
+  if (arr && obj) {
+    return stripped.indexOf("[") < stripped.indexOf("{") ? arr : obj;
+  }
   if (obj) return obj;
+  if (arr) return arr;
   return stripped;
 }
 
@@ -503,7 +506,7 @@ function ThinkMode({brand, onUpdate}) {
     const transcript = messages.map(m => (m.role==="user"?"YOU":"AI")+": "+m.content).join("\n\n");
     const prompt = "You are extracting strategic insights from a Think Mode conversation to update Brand Inputs.\n\nCURRENT BRAND INPUTS:\nBrand: "+brand.name+"\nOrganising Idea: "+(brand.organising_idea||"not set")+"\nStrategic Tension: "+(brand.strategic_tension||"not set")+"\nWhite Space: "+(brand.white_space||"not set")+"\n\nTRANSCRIPT:\n"+transcript.slice(0,6000)+"\n\nExtract ONLY new or refined information not already captured. Look for corrections to existing fields, new customer language phrases, new proof points.\n\nReturn ONLY raw JSON (no markdown):\n{\"organising_idea\":\"\",\"strategic_tension\":\"\",\"white_space\":\"\",\"new_pain_phrases\":[],\"new_desire_phrases\":[],\"new_trigger_phrases\":[],\"new_proof_points\":[],\"notes\":\"one sentence summary of what this conversation revealed\"}";
     try {
-      const raw = await callJSON(prompt, 800);
+      const raw = await callJSON(prompt, 1500);
       const parsed = JSON.parse(raw);
       const fields = [];
       if (parsed.organising_idea?.trim()) fields.push({key:"organising_idea",label:"Organising Idea",value:parsed.organising_idea});
@@ -1227,7 +1230,7 @@ function HookTab({brand, onUpdate, prefill, clearPrefill}) {
 
     // Run two smaller calls in parallel — cuts wait time roughly in half
     const [partA, partB] = await Promise.all([
-      callJSON(base+"\n\nReturn ONLY raw JSON, no markdown:\n{\"aha\":\"\",\"gut\":\"\",\"brain_a\":\"\",\"brain_b\":\"\",\"pocket\":\"\",\"overview\":\"\",\"hook_variations\":[\"\",\"\",\"\"],\"casting\":\"\",\"filming\":\"\",\"campaign_card\":{\"concept_name\":\"\",\"angle\":\""+sel.angle+"\",\"awareness_stage\":\""+sel.awareness+"\",\"persona\":\""+sel.persona+"\",\"format\":\""+sel.subtype+"\",\"hypothesis\":\"\",\"success_metric\":\"\"}}", 1400),
+      callJSON(base+"\n\nReturn ONLY raw JSON, no markdown:\n{\"aha\":\"\",\"gut\":\"\",\"brain_a\":\"\",\"brain_b\":\"\",\"pocket\":\"\",\"overview\":\"\",\"hook_variations\":[\"\",\"\",\"\"],\"casting\":\"\",\"filming\":\"\",\"campaign_card\":{\"concept_name\":\"\",\"angle\":\""+sel.angle+"\",\"awareness_stage\":\""+sel.awareness+"\",\"persona\":\""+sel.persona+"\",\"format\":\""+sel.subtype+"\",\"hypothesis\":\"\",\"success_metric\":\"\"}}", 2000),
       callJSON(base+"\n\nReturn ONLY raw JSON, no markdown:\n{\"shot_list\":[\"\",\"\",\"\",\"\",\"\",\"\"],\"dos\":[\"\",\"\",\"\",\"\"],\"donts\":[\"\",\"\",\"\",\"\"],\"caption_instructions\":[{\"voiceover\":\"\",\"on_screen_text\":\"\",\"suggested_visual\":\"\"},{\"voiceover\":\"\",\"on_screen_text\":\"\",\"suggested_visual\":\"\"},{\"voiceover\":\"\",\"on_screen_text\":\"\",\"suggested_visual\":\"\"}],\"variations\":[\"\",\"\",\"\"]}", 1200),
     ]).catch(() => [null, null]);
 
@@ -1449,7 +1452,7 @@ function ExploreTab({brand, onUpdate, onOpenInHookBuilder}) {
     setLoadingPersonas(true);
     const prompt = "Brand: "+brand.name+"\nProduct/Service: "+(brand.organising_idea||"")+"\nCurrent Core Persona: "+(brand.core_persona?.name||"")+" — "+(brand.core_persona?.desc||"")+"\nCurrent Secondary Persona: "+(brand.secondary_persona?.name||"none")+"\nProof Points: "+((brand.proof_points||[]).join(", "))+"\n\nBased on the Loop Earplugs micro-targeting model (one product many identity-based tribes), suggest 4 additional personas this brand hasn't targeted yet. Each should be an identity-based tribe, not just demographics.\n\nReturn ONLY raw JSON, no markdown:\n[{\"name\":\"persona name\",\"identity\":\"who they are in one sentence\",\"trigger\":\"the moment they'd reach for this product\",\"best_angle\":\"which angle from: "+ANGLES.join(", ")+"\",\"awareness_stage\":\"which of: Unaware/Problem Aware/Solution Aware/Product Aware/Most Aware\",\"why\":\"one sentence why this persona is a real opportunity\"}]";
     try {
-      const raw = await callJSON(prompt, 1200);
+      const raw = await callJSON(prompt, 2000);
       setPersonaSuggestions(JSON.parse(raw));
     } catch(err) { setPersonaSuggestions([{name:"Error",identity:"Error: "+(err.message||"Could not generate"),trigger:"",best_angle:"",awareness_stage:"",why:""}]); }
     setLoadingPersonas(false);
