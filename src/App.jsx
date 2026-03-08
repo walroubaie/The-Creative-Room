@@ -1,6 +1,30 @@
 import { useState, useEffect, useRef } from "react";
 import * as mammoth from "mammoth";
 
+// PDF text extraction via PDF.js CDN
+async function parsePDF(file) {
+  if (!window.pdfjsLib) {
+    await new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+  }
+  const ab = await file.arrayBuffer();
+  const pdf = await window.pdfjsLib.getDocument({ data: ab }).promise;
+  let text = "";
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    text += content.items.map(item => item.str).join(" ") + "\n";
+  }
+  return text.trim();
+}
+
 // ── STORAGE ───────────────────────────────────────────────────────────────────
 async function loadBrands() { try { const r = await window.storage.get("cr_brands"); return r ? JSON.parse(r.value) : []; } catch { return []; } }
 async function saveBrands(b) { try { await window.storage.set("cr_brands", JSON.stringify(b)); } catch {} }
@@ -140,7 +164,7 @@ async function callClaude(messages, system, maxTokens = 1000) {
   const body = { model:"claude-sonnet-4-20250514", max_tokens:maxTokens, messages };
   if (system) body.system = system;
   const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body),
+    method:"POST", headers:{"Content-Type":"application/json","x-api-key":import.meta.env.VITE_ANTHROPIC_API_KEY,"anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"}, body:JSON.stringify(body),
   });
   const d = await res.json();
   return (d.content?.[0]?.text || "").trim();
@@ -391,12 +415,20 @@ function ThinkMode({brand, onUpdate}) {
     setParsing(true); e.target.value = "";
     try {
       let text = "";
-      if (file.name.endsWith(".docx")) { const ab=await file.arrayBuffer(); const r=await mammoth.extractRawText({arrayBuffer:ab}); text=r.value; }
-      else { text = await file.text(); }
+      if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+        const ab = await file.arrayBuffer();
+        const r = await mammoth.extractRawText({ arrayBuffer: ab });
+        text = r.value;
+      } else if (file.name.endsWith(".pdf")) {
+        text = await parsePDF(file);
+      } else {
+        text = await file.text();
+      }
+      if (!text?.trim()) throw new Error("Could not extract text from this file.");
       const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,12000));
       const parsed = JSON.parse(raw);
       onUpdate(additiveMerge(brand, parsed));
-    } catch { alert("Could not parse document. Try again."); }
+    } catch(err) { alert("Could not parse document: " + (err.message || "Unknown error. Try a .docx or .txt file.")); }
     setParsing(false);
   };
 
@@ -498,7 +530,7 @@ function ThinkMode({brand, onUpdate}) {
               <div style={{fontSize:11,color:T.dim,fontFamily:T.font}}>{hasBrandData ? "Brand Inputs populated. Upload to update." : "Parses and auto-fills Brand Inputs."}</div>
             </div>
             <div>
-              <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
+              <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc,.pdf" onChange={handleFile} style={{display:"none"}}/>
               <Btn onClick={()=>fileRef.current?.click()} variant="secondary" disabled={parsing} style={{fontSize:11,padding:"7px 14px"}}>{parsing?"Parsing...":"Upload Doc"}</Btn>
             </div>
           </div>
@@ -751,13 +783,21 @@ function BrandInputsTab({brand, onUpdate}) {
     setParsing(true); e.target.value = "";
     try {
       let text = "";
-      if (file.name.endsWith(".docx")) { const ab=await file.arrayBuffer(); const r=await mammoth.extractRawText({arrayBuffer:ab}); text=r.value; }
-      else { text = await file.text(); }
+      if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+        const ab = await file.arrayBuffer();
+        const r = await mammoth.extractRawText({ arrayBuffer: ab });
+        text = r.value;
+      } else if (file.name.endsWith(".pdf")) {
+        text = await parsePDF(file);
+      } else {
+        text = await file.text();
+      }
+      if (!text?.trim()) throw new Error("Could not extract text from this file.");
       const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,12000));
       const parsed = JSON.parse(raw);
-      onUpdate(additiveMerge(brand, parsed)); 
+      onUpdate(additiveMerge(brand, parsed));
       setSetupMode(null);
-    } catch { alert("Could not parse document. Try again."); }
+    } catch(err) { alert("Could not parse document: " + (err.message || "Unknown error. Try a .docx or .txt file.")); }
     setParsing(false);
   };
 
@@ -781,7 +821,7 @@ function BrandInputsTab({brand, onUpdate}) {
           Skip — I'll fill it in manually
         </button>
       </div>
-      <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
+      <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc,.pdf" onChange={handleFile} style={{display:"none"}}/>
     </div>
   );
 
@@ -821,7 +861,7 @@ function BrandInputsTab({brand, onUpdate}) {
       <div style={{background:T.warm,border:"1.5px solid "+T.border,borderRadius:8,padding:"12px 16px",marginBottom:22,display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,flexWrap:"wrap"}}>
         <div style={{fontSize:11,color:T.mid,fontFamily:T.font}}>Update from document — parses and merges into existing data.</div>
         <div style={{display:"flex",gap:8}}>
-          <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc" onChange={handleFile} style={{display:"none"}}/>
+          <input ref={fileRef} type="file" accept=".txt,.md,.docx,.doc,.pdf" onChange={handleFile} style={{display:"none"}}/>
           <Btn onClick={()=>fileRef.current?.click()} variant="secondary" disabled={parsing} style={{fontSize:11,padding:"7px 12px"}}>{parsing?"Parsing...":"Upload & Parse"}</Btn>
           {!brand.name && <Btn onClick={()=>setSetupMode("choose")} variant="secondary" style={{fontSize:11,padding:"7px 12px"}}>Guided Setup</Btn>}
         </div>
