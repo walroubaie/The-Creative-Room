@@ -445,13 +445,24 @@ function ThinkMode({brand, onUpdate}) {
     setParsing(true); e.target.value = "";
     try {
       let text = "";
-      if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) { const ab=await file.arrayBuffer(); const r=await mammoth.extractRawText({arrayBuffer:ab}); text=r.value; }
-      else if (file.name.endsWith(".pdf")) { text = await parsePDF(file); }
-      else { text = await file.text(); }
+      if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) {
+        const ab = await file.arrayBuffer();
+        const r = await mammoth.extractRawText({arrayBuffer:ab});
+        text = r.value;
+      } else if (file.name.endsWith(".pdf")) {
+        text = await parsePDF(file);
+      } else {
+        text = await file.text();
+      }
+      if (!text || text.trim().length < 20) throw new Error("Document appears empty or unreadable.");
       const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,12000));
-      const parsed = JSON.parse(raw);
+      const clean = raw.replace(/^```json\s*/,"").replace(/^```\s*/,"").replace(/\s*```$/,"").trim();
+      const parsed = JSON.parse(clean);
       onUpdate(additiveMerge(brand, parsed));
-    } catch { alert("Could not parse document. Try again."); }
+    } catch(err) {
+      console.error("Upload error:", err);
+      alert("Could not parse document: " + (err.message||"Unknown error") + "\n\nMake sure your API key is set and the document has readable text.");
+    }
     setParsing(false);
   };
 
@@ -1042,11 +1053,16 @@ function BrandInputsTab({brand, onUpdate}) {
       if (file.name.endsWith(".docx") || file.name.endsWith(".doc")) { const ab=await file.arrayBuffer(); const r=await mammoth.extractRawText({arrayBuffer:ab}); text=r.value; }
       else if (file.name.endsWith(".pdf")) { text = await parsePDF(file); }
       else { text = await file.text(); }
+      if (!text || text.trim().length < 20) throw new Error("Document appears empty or unreadable.");
       const raw = await callJSON(PARSE_PROMPT+"\n\nDOCUMENT:\n"+text.slice(0,12000));
-      const parsed = JSON.parse(raw);
+      const clean = raw.replace(/^```json\s*/,"").replace(/^```\s*/,"").replace(/\s*```$/,"").trim();
+      const parsed = JSON.parse(clean);
       onUpdate(additiveMerge(brand, parsed)); 
       setSetupMode(null);
-    } catch { alert("Could not parse document. Try again."); }
+    } catch(err) {
+      console.error("Upload error:", err);
+      alert("Could not parse document: " + (err.message||"Unknown error") + "\n\nMake sure your API key is set and the document has readable text.");
+    }
     setParsing(false);
   };
 
